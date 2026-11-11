@@ -659,21 +659,25 @@
         <li>Usa sempre l'app dall'<b>icona sulla schermata Home</b>, non da Safari.</li>
         <li>Fai ogni tanto un <b>Backup</b> e salvalo in File/iCloud: se cambi telefono potrai ripristinarlo.</li>
       </ul>
-      <div class="btns"><button class="btn p" id="iClose">Ho capito</button></div>
+      <h4>🔄 Aggiornamenti</h4>
+      <p>Quando esce una versione nuova compare in alto un avviso con il pulsante <b>Aggiorna</b>. Puoi anche controllare a mano. Versione attuale: <b>${APP_VERSION}</b>.</p>
+      <div class="btns"><button class="btn s" id="iUpd">Controlla aggiornamenti</button><button class="btn p" id="iClose">Ho capito</button></div>
     </div>`;
     veil.classList.add("show");
     sheet.scrollTop = 0;
     $("iClose").onclick = closeSheet;
+    $("iUpd").onclick = () => checkUpdate(true);
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "1.9";
+  const APP_VERSION = "2.0";
   $("ver").textContent = APP_VERSION;
   const newer = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
   let lastCheck = 0;
-  async function checkUpdate() {
-    if (!/^https?:/.test(location.protocol) || Date.now() - lastCheck < 60000) return;
+  async function checkUpdate(manual) {
+    if (!/^https?:/.test(location.protocol)) { if (manual) toast("Controllo non disponibile qui"); return; }
+    if (!manual && Date.now() - lastCheck < 60000) return;
     lastCheck = Date.now();
     try {
       const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
@@ -683,8 +687,9 @@
         $("updTxt").textContent = `Versione ${j.version}` + (j.note ? ` · ${j.note}` : "");
         $("updBar").hidden = false;
         $("updBtn").onclick = () => { location.replace(location.pathname + "?v=" + encodeURIComponent(j.version)); };
-      }
-    } catch (e) {}
+        if (manual) { closeSheet(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      } else if (manual) toast(`Hai già l'ultima versione (${APP_VERSION})`);
+    } catch (e) { if (manual) toast("Nessuna connessione, riprova più tardi"); }
   }
   setInterval(checkUpdate, 30 * 60000);
 
