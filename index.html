@@ -167,7 +167,12 @@
   let storageOk = true;
   const store = {
     load() {
-      try { const j = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); days = j.days || {}; settings = Object.assign({ target: 8 }, j.settings || {}); }
+      try {
+        const j = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+        days = {};
+        for (const [dk, v] of Object.entries(j.days || {})) if (v && Array.isArray(v.p)) days[dk] = { p: v.p.filter(x => x && Number.isFinite(x.i)) };
+        settings = Object.assign({ target: 8 }, j.settings || {});
+      }
       catch (e) { storageOk = false; }
     },
     save() {
@@ -205,9 +210,15 @@
   }
 
   // ---------- actions ----------
+  const MAX_SHIFT = 16 * 3600000;     // turno massimo plausibile
+  const FORGOT = 14 * 3600000;        // oltre: probabile uscita dimenticata
+  let lastTap = 0;
   async function punch() {
     const now = Date.now();
+    if (now - lastTap < 5000) { toast("Hai appena timbrato"); return; }
     const open = findOpen();
+    if (open && now - days[open.k].p[open.idx].i > FORGOT) { openPunchSheet(open.k, open.idx, true); return; }
+    lastTap = now;
     let k;
     if (open) {
       k = open.k;
@@ -238,9 +249,16 @@
     if (open) {
       const p = days[open.k].p[open.idx];
       $("dot").classList.add("on");
+      if (now - p.i > FORGOT) {
+        $("dot").classList.remove("on");
+        $("statusTxt").innerHTML = `<span style="color:var(--warn)">Uscita dimenticata? Turno aperto dalle ${hm(p.i)} di ${esc(fmtDay(open.k))}</span>`;
+        btn.className = "punch-btn out";
+        btn.innerHTML = `Inserisci l'ora di uscita<small>Poi potrai timbrare l'entrata di oggi</small>`;
+      } else {
       $("statusTxt").innerHTML = `In servizio dalle <b style="color:var(--text)">${hm(p.i)}</b>${open.k !== today ? " (" + esc(fmtDay(open.k)) + ")" : ""} · ${dur(now - p.i)}`;
       btn.className = "punch-btn out";
       btn.innerHTML = `Timbra uscita<small>Turno in corso da ${dur(now - p.i)}</small>`;
+      }
     } else {
       $("dot").classList.remove("on");
       const tp = days[today]?.p || [];
@@ -280,7 +298,8 @@
     const mDays = Object.keys(days).filter(k => k.startsWith(mKey) && days[k].p.length);
     const mMs = mDays.reduce((s, k) => s + dayMs(k, now), 0);
     $("mTot").textContent = dur(mMs);
-    const bal = mMs - mDays.length * tgt;
+    // giorni passati: ore - obiettivo; oggi: solo l'eventuale straordinario (il deficit si conta a fine giornata)
+    const bal = mDays.reduce((s, k) => k < today ? s + dayMs(k, now) - tgt : k === today ? s + Math.max(0, dayMs(k, now) - tgt) : s, 0);
     const balEl = $("mBal"); balEl.textContent = signed(bal);
     balEl.style.color = bal >= 0 ? "var(--green)" : "var(--warn)";
 
@@ -327,12 +346,13 @@
   veil.addEventListener("click", e => { if (e.target === veil) closeSheet(); });
   const tsFrom = (dateStr, timeStr) => { const [y,m,d] = dateStr.split("-").map(Number); const [h,mi] = timeStr.split(":").map(Number); return new Date(y, m-1, d, h, mi).getTime(); };
 
-  function openPunchSheet(k, idx) {
+  function openPunchSheet(k, idx, forgot) {
     const editing = k != null;
     const p = editing ? days[k].p[idx] : null;
     const dateVal = editing ? k : dayKey(new Date());
     sheet.innerHTML = `
-      <h3>${editing ? "Modifica timbratura" : "Aggiungi timbratura"}</h3>
+      <h3>${forgot ? "A che ora sei uscito?" : editing ? "Modifica timbratura" : "Aggiungi timbratura"}</h3>
+      ${forgot ? `<div class="sub" style="margin-bottom:12px">Il turno iniziato ${esc(fmtDay(k))} alle ${hm(days[k].p[idx].i)} non è mai stato chiuso.</div>` : ""}
       <div class="field"><label>Giorno</label><input type="date" id="fDate" value="${dateVal}"></div>
       <div class="field"><label>Entrata</label><input type="time" id="fIn" value="${p ? hm(p.i) : "09:00"}"></div>
       <div class="field"><label>Uscita ${editing && p.o == null ? "(vuoto = turno ancora in corso)" : ""}</label><input type="time" id="fOut" value="${p ? (p.o != null ? hm(p.o) : "") : "18:00"}"></div>
@@ -358,11 +378,23 @@
       if (!date || !tin) { $("fErr").textContent = "Inserisci giorno e ora di entrata."; return; }
       const i = tsFrom(date, tin);
       let o = null;
-      if (tout) { o = tsFrom(date, tout); if (o <= i) o += 86400000; } // turno a cavallo della mezzanotte
+      if (tout) {
+        o = tsFrom(date, tout); if (o <= i) o += 86400000; // turno a cavallo della mezzanotte
+        if (o - i > MAX_SHIFT) { $("fErr").textContent = `Turno di ${dur(o - i)}: controlla gli orari (uscita prima dell'entrata?).`; return; }
+        if (o > Date.now() + 60000) { $("fErr").textContent = "L'uscita non può essere nel futuro."; return; }
+      }
       else {
         const other = findOpen();
         if (other && !(editing && other.k === k && other.idx === idx)) { $("fErr").textContent = "C'è già un turno in corso: inserisci l'ora di uscita."; return; }
         if (i > Date.now()) { $("fErr").textContent = "L'entrata non può essere nel futuro."; return; }
+      }
+      const end = o ?? Date.now();
+      for (const dk of Object.keys(days)) {
+        for (let j = 0; j < days[dk].p.length; j++) {
+          if (editing && dk === k && j === idx) continue;
+          const q = days[dk].p[j], qe = q.o ?? Date.now();
+          if (i < qe && q.i < end) { $("fErr").textContent = `Si sovrappone al turno ${hm(q.i)} → ${q.o != null ? hm(q.o) : "in corso"} di ${fmtDay(dk)}.`; return; }
+        }
       }
       const touched = new Set([date]);
       if (editing) { days[k].p.splice(idx, 1); touched.add(k); }
@@ -457,8 +489,16 @@
       try {
         const j = JSON.parse(await f.text());
         if (j.app !== "timbrature" || typeof j.days !== "object") throw 0;
-        armed = j;
-        $("bErr").innerHTML = `Backup con ${Object.keys(j.days).length} giorni. <button class="edit" id="bOk">Sostituisci i dati attuali</button>`;
+        const clean = {};
+        for (const [dk, v] of Object.entries(j.days)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !v || !Array.isArray(v.p)) continue;
+          const p = v.p.filter(x => x && Number.isFinite(x.i) && (x.o == null || Number.isFinite(x.o)))
+                       .map(x => ({ i: x.i, o: x.o ?? null }));
+          if (p.length) clean[dk] = { p: sortPunches(p) };
+        }
+        if (!Object.keys(clean).length) throw 0;
+        armed = { days: clean, settings: j.settings && Number.isFinite(+j.settings.target) ? { target: +j.settings.target } : { target: 8 } };
+        $("bErr").innerHTML = `Backup con ${Object.keys(clean).length} giorni. <button class="edit" id="bOk">Sostituisci i dati attuali</button>`;
         $("bOk").onclick = () => {
           days = armed.days; settings = Object.assign({ target: 8 }, armed.settings || {});
           store.save(); closeSheet(); render(); toast("Backup ripristinato");
