@@ -50,7 +50,7 @@
   .sub b{color:var(--text)}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
-  .stat .v{font-size:19px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat .v{font-size:clamp(14px,4.4vw,19px);font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
   .row:first-child{border-top:0}
   .row.pause{padding:6px 0;border-top:1px dashed var(--line)}
@@ -88,16 +88,36 @@
   .seg{display:flex;background:var(--card2);border-radius:12px;padding:3px}
   .seg button{flex:1;border:0;background:none;color:var(--muted);padding:9px;border-radius:10px;font-size:15px;cursor:pointer}
   .seg button.sel{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+  .two>div,.field{min-width:0}
+  .field input[type=date],.field input[type=time]{min-width:0;max-width:100%;display:block}
   .pay{display:flex;justify-content:space-between;align-items:center}
   .pay .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
   .info h4{margin:18px 0 6px;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0}
   .info p,.info li{color:var(--muted);font-size:15px;line-height:1.45;margin:0 0 6px}
   .info ul{padding-left:18px;margin:0}
   .info b{color:var(--text)}
+  .chart{display:flex;gap:2px;align-items:flex-end;height:96px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 10px 4px;margin-bottom:10px}
+  .cb{flex:1;display:flex;flex-direction:column;height:100%;min-width:0}
+  .cs{flex:1;position:relative;display:flex;flex-direction:column-reverse}
+  .cw{background:var(--accent-bg);border-radius:3px 3px 0 0}
+  .cw.over{background:var(--green)}
+  .ca{background:var(--muted);opacity:.55}
+  .ct{position:absolute;left:-1px;right:-1px;height:2px;background:var(--text);opacity:.25}
+  .cb.today .cl{color:var(--text);font-weight:700}
+  .cl{font-size:10px;color:var(--muted);text-align:center;height:13px;line-height:13px}
+  .tags{display:block;font-size:12px;font-weight:500;color:var(--muted);text-transform:none;margin-top:2px}
+  .day-actions{padding:6px 0 4px;border-top:1px solid var(--line)}
+  .day-actions .link{padding:6px 0;font-size:14px}
+  .still{background:var(--card2);border:1px solid var(--warn);border-radius:14px;padding:14px;margin-top:14px}
   .mtot{color:var(--muted);font-size:14px;margin:0 4px 10px}
   .field{margin-bottom:12px}
   .field label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+  .field textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font-size:17px;font-family:inherit;resize:vertical}
+  .field input:disabled{opacity:.6}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .week label{text-align:center;margin-bottom:4px}
+  .week input{padding:10px 2px!important;text-align:center;font-size:16px!important}
   .field input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
     border-radius:12px;padding:12px;font-size:17px;font-family:inherit;-webkit-appearance:none;min-height:46px}
   .btns{display:flex;gap:10px;margin-top:16px}
@@ -127,6 +147,10 @@
 
   <div class="card">
     <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Caricamento…</span></div>
+    <div class="still" id="still" hidden>
+      <div><b>Sei ancora al lavoro?</b><div class="sub" id="stillTxt"></div></div>
+      <div class="btns" style="margin-top:10px"><button class="btn s" id="stillYes">Sì, continuo</button><button class="btn p" id="stillNo"></button></div>
+    </div>
     <button class="punch-btn" id="punchBtn" disabled>Timbra entrata</button>
   </div>
 
@@ -153,6 +177,7 @@
   <h2>Storico <button class="link" id="addBtn">+ Aggiungi</button></h2>
   <div class="month-tabs" id="months"></div>
   <div class="mtot" id="histTot"></div>
+  <div id="chart"></div>
   <div id="history"></div>
 
   <div class="tools">
@@ -189,7 +214,10 @@
 
   // ---------- state ----------
   let days = {};             // "YYYY-MM-DD" -> { p: [{i: ms, o: ms|null}] }
-  const DEFAULTS = { target: 8, name: "Timbrature", color: "#5b8cff", theme: "dark", pay: 0, ot: 25 };
+  const DEFAULTS = { target: 8, week: null, round: 0, name: "Timbrature", color: "#5b8cff", theme: "dark", pay: 0, ot: 25, otN: 0, otF: 0 };
+  const WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+  const ABS = { ferie: "Ferie", malattia: "Malattia", permesso: "Permesso", festivo: "Festivo" };
+  const ABS_ICON = { ferie: "🏖️", malattia: "🤒", permesso: "📄", festivo: "🎉" };
   const COLORS = ["#5b8cff", "#2fbf71", "#9b6bff", "#ff8a3d", "#ff5c8a", "#22b8cf"];
   let settings = Object.assign({}, DEFAULTS);
   let selMonth = dayKey(new Date()).slice(0, 7);
@@ -204,13 +232,13 @@
       try {
         const j = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
         days = {};
-        for (const [dk, v] of Object.entries(j.days || {})) if (v && Array.isArray(v.p)) days[dk] = { p: v.p.filter(x => x && Number.isFinite(x.i)) };
+        for (const [dk, v] of Object.entries(j.days || {})) { const c = cleanDay(dk, v); if (c) days[dk] = c; }
         settings = Object.assign({}, DEFAULTS, j.settings || {});
       }
       catch (e) { storageOk = false; }
     },
     save() {
-      for (const k of Object.keys(days)) if (!days[k].p.length) delete days[k];
+      for (const k of Object.keys(days)) if (!hasData(k)) delete days[k];
       try { localStorage.setItem(LS_KEY, JSON.stringify({ days, settings, saved: Date.now() })); }
       catch (e) { storageOk = false; showNote("Impossibile salvare i dati: disattiva la navigazione privata."); }
     },
@@ -234,9 +262,65 @@
   // ---------- calculations ----------
   // conta minuti interi (08:00:50 → 08:00), così i totali coincidono con l'Excel che usa HH:MM
   const toMin = t => Math.floor(t / 60000) * 60000;
-  const punchMs = (p, now) => Math.max(0, toMin(p.o ?? now) - toMin(p.i));
+  // arrotondamento: entrata al blocco successivo, uscita al precedente (come molti badge aziendali)
+  function eff(p, now) {
+    let i = toMin(p.i), o = toMin(p.o ?? now);
+    const r = (Number(settings.round) || 0) * 60000;
+    if (r) { i = Math.ceil(i / r) * r; if (p.o != null) o = Math.floor(o / r) * r; if (o < i) o = i; }
+    return { i, o };
+  }
+  const punchMs = (p, now) => { const e = eff(p, now); return Math.max(0, e.o - e.i); };
   const dayMs = (k, now) => (days[k]?.p || []).reduce((s, p) => s + punchMs(p, now), 0);
-  const targetMs = () => (Number(settings.target) || 0) * 3600000;
+  const absMs = k => days[k]?.t ? (Number(days[k].h) || 0) * 3600000 : 0;
+  const hasData = k => !!days[k] && (days[k].p.length > 0 || !!days[k].t || !!days[k].n);
+  function cleanDay(dk, v) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !v || typeof v !== "object") return null;
+    const p = (Array.isArray(v.p) ? v.p : []).filter(x => x && Number.isFinite(x.i) && (x.o == null || Number.isFinite(x.o)))
+                 .map(x => ({ i: x.i, o: x.o ?? null })).sort((a, b) => a.i - b.i);
+    const d = { p };
+    if (ABS[v.t]) { d.t = v.t; d.h = Math.min(24, Math.max(0, Number(v.h) || 0)); }
+    if (typeof v.n === "string" && v.n.trim()) d.n = v.n.trim().slice(0, 300);
+    return (d.p.length || d.t || d.n) ? d : null;
+  }
+  // festività nazionali italiane
+  function easter(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+      g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+      l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, mo - 1, da);
+  }
+  const holCache = {};
+  function holidayName(k) {
+    const y = +k.slice(0, 4);
+    if (!holCache[y]) {
+      const pm = easter(y); pm.setDate(pm.getDate() + 1);
+      holCache[y] = { [`${y}-01-01`]: "Capodanno", [`${y}-01-06`]: "Epifania", [dayKey(pm)]: "Pasquetta", [`${y}-04-25`]: "Festa della Liberazione",
+        [`${y}-05-01`]: "Festa del Lavoro", [`${y}-06-02`]: "Festa della Repubblica", [`${y}-08-15`]: "Ferragosto", [`${y}-11-01`]: "Ognissanti",
+        [`${y}-12-08`]: "Immacolata", [`${y}-12-25`]: "Natale", [`${y}-12-26`]: "Santo Stefano" };
+    }
+    return holCache[y][k] || null;
+  }
+  const isFestive = k => keyToDate(k).getDay() === 0 || !!holidayName(k) || days[k]?.t === "festivo";
+  function weekHours() {
+    const w = settings.week, t = Number(settings.target) || 0;
+    return Array.isArray(w) && w.length === 7 ? w.map(x => Number(x) || 0) : [t, t, t, t, t, t, t];
+  }
+  const dayTargetH = k => holidayName(k) ? 0 : weekHours()[(keyToDate(k).getDay() + 6) % 7];
+  const targetFor = k => dayTargetH(k) * 3600000;
+  // minuti notturni (22–06) e festivi/domenicali di un turno
+  function splitMs(p, now) {
+    const e = eff(p, now); let night = 0, fest = 0;
+    const start = keyToDate(dayKey(new Date(e.i))); start.setDate(start.getDate() - 1);
+    for (const d = start; d.getTime() < e.o; d.setDate(d.getDate() + 1)) {
+      const k = dayKey(d), d0 = d.getTime(), dn = new Date(d); dn.setDate(dn.getDate() + 1); const d1 = dn.getTime();
+      const ov = (a, b) => Math.max(0, Math.min(b, e.o) - Math.max(a, e.i));
+      const n1 = new Date(d); n1.setHours(6, 0, 0, 0); const n2 = new Date(d); n2.setHours(22, 0, 0, 0);
+      night += ov(d0, n1.getTime()) + ov(n2.getTime(), d1);
+      if (isFestive(k)) fest += ov(d0, d1);
+    }
+    return { night, fest };
+  }
   const sortPunches = arr => arr.sort((a, b) => a.i - b.i);
   function findOpen() {
     for (const k of Object.keys(days).sort().reverse()) {
@@ -274,6 +358,34 @@
     try { await store.writeDay(k); } catch (e) { toast("Errore nel salvataggio, riprova"); }
   }
 
+  // ---------- "Sei ancora al lavoro?" ----------
+  // orario di uscita abituale = mediana dell'ultima uscita dei giorni recenti (servono almeno 3 giorni)
+  function usualExitMin() {
+    const today = dayKey(new Date()), mins = [];
+    for (const k of Object.keys(days).sort().reverse()) {
+      if (k >= today) continue;
+      const ps = days[k].p; if (!ps.length) continue;
+      const last = ps[ps.length - 1]; if (last.o == null || dayKey(new Date(last.o)) !== k) continue;
+      const d = new Date(last.o); mins.push(d.getHours() * 60 + d.getMinutes());
+      if (mins.length >= 15) break;
+    }
+    if (mins.length < 3) return null;
+    mins.sort((a, b) => a - b); return mins[Math.floor(mins.length / 2)];
+  }
+  let stillDismissed = (() => { try { return +localStorage.getItem("timbrature.still") || 0; } catch (e) { return 0; } })();
+  function renderStill(open, now) {
+    const box = $("still");
+    if (!open || open.k !== dayKey(new Date(now))) { box.hidden = true; return; }
+    const p = days[open.k].p[open.idx], u = usualExitMin();
+    const at = keyToDate(open.k); at.setHours(0, u ?? 0, 0, 0);
+    if (u == null || stillDismissed === p.i || at.getTime() <= p.i || now < at.getTime() + 45 * 60000) { box.hidden = true; return; }
+    box.hidden = false;
+    $("stillTxt").textContent = `Di solito esci verso le ${hm(at)}. Se hai dimenticato di timbrare, registra l'uscita a quell'ora.`;
+    $("stillNo").textContent = `Sono uscito alle ${hm(at)}`;
+    $("stillNo").onclick = () => { p.o = at.getTime(); store.save(); render(); toast(`Uscita registrata alle ${hm(at)}`); };
+    $("stillYes").onclick = () => { stillDismissed = p.i; try { localStorage.setItem("timbrature.still", String(p.i)); } catch (e) {} render(); };
+  }
+
   // ---------- aspetto ----------
   const eur = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
   function applyLook() {
@@ -291,16 +403,23 @@
   }
   try { matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { applyLook(); }); } catch (e) {}
 
-  // ore ordinarie / straordinarie e stima lorda di un mese
-  function monthPay(month, now) {
-    const tgt = targetMs(); let ord = 0, ot = 0;
+  // riepilogo di un mese: ore ordinarie, straordinari, notturne, festive, assenze e stima lorda
+  function monthStats(month, now) {
+    const r = { worked: 0, ord: 0, ot: 0, night: 0, fest: 0, absH: 0, abs: {}, days: 0, total: 0 };
     for (const k of Object.keys(days)) {
-      if (!k.startsWith(month)) continue;
-      const ms = dayMs(k, now);
-      if (tgt) { ord += Math.min(ms, tgt); ot += Math.max(0, ms - tgt); } else ord += ms;
+      if (!k.startsWith(month) || !hasData(k)) continue;
+      const w = dayMs(k, now), tg = targetFor(k), a = absMs(k);
+      if (w || a) r.days++;
+      r.worked += w;
+      const ordW = Math.min(w, Math.max(0, tg - a));
+      r.ord += ordW; r.ot += w - ordW;
+      if (days[k].t) { r.absH += a; r.abs[days[k].t] = (r.abs[days[k].t] || 0) + a; }
+      for (const p of days[k].p) { const sp = splitMs(p, now); r.night += sp.night; r.fest += sp.fest; }
     }
-    const pay = Number(settings.pay) || 0, rate = 1 + (Number(settings.ot) || 0) / 100;
-    return { ord, ot, total: (ord / 3600000) * pay + (ot / 3600000) * pay * rate };
+    const pay = Number(settings.pay) || 0, H = 3600000;
+    r.total = (r.ord + r.absH) / H * pay + r.ot / H * pay * (1 + (Number(settings.ot) || 0) / 100)
+            + r.night / H * pay * (Number(settings.otN) || 0) / 100 + r.fest / H * pay * (Number(settings.otF) || 0) / 100;
+    return r;
   }
 
   // ---------- rendering ----------
@@ -341,8 +460,10 @@
       }
     }
 
+    renderStill(open, now);
+
     // today
-    const tMs = dayMs(today, now), tgt = targetMs();
+    const tMs = dayMs(today, now), tgt = Math.max(0, targetFor(today) - absMs(today)), tgH = num1(+(tgt / 3600000).toFixed(2));
     $("todayTot").textContent = dur(tMs);
     const pct = tgt ? Math.min(100, tMs / tgt * 100) : 0;
     const bar = $("todayBar"); bar.style.width = pct + "%"; bar.classList.toggle("done", tgt && tMs >= tgt);
@@ -350,10 +471,11 @@
       const p = days[open.k].p[open.idx];
       $("todayMsg").innerHTML = `Turno iniziato ${esc(fmtDay(open.k))}: <b>${dur(punchMs(p, now))}</b> (contato su quel giorno)`;
     }
-    else if (!tgt) $("todayMsg").textContent = "";
-    else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${num1(settings.target)}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
+    else if (days[today]?.t && !tMs) $("todayMsg").innerHTML = `Oggi: <b>${ABS_ICON[days[today].t]} ${ABS[days[today].t]}</b> (${num1(days[today].h)}h)`;
+    else if (!tgt) $("todayMsg").innerHTML = tMs ? `${esc(holidayName(today) || "Giorno di riposo")}: tutte le ore sono <b>straordinario</b>` : esc(holidayName(today) || "Giorno di riposo");
+    else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${tgH}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
     else {
-      let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${num1(settings.target)}h`;
+      let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${tgH}h`;
       if (open) { const end = now + (tgt - tMs); msg += ` · uscita prevista alle <b>${hm(end)}</b>`; }
       $("todayMsg").innerHTML = msg;
     }
@@ -366,20 +488,25 @@
     for (let i = 0; i < 7; i++) { const x = new Date(monday); x.setDate(monday.getDate() + i); wMs += dayMs(dayKey(x), now); }
     $("wTot").textContent = dur(wMs);
     const mKey = today.slice(0, 7);
-    const mDays = Object.keys(days).filter(k => k.startsWith(mKey) && days[k].p.length);
+    const mDays = Object.keys(days).filter(k => k.startsWith(mKey) && (days[k].p.length || days[k].t));
     const mMs = mDays.reduce((s, k) => s + dayMs(k, now), 0);
     $("mTot").textContent = dur(mMs);
-    // giorni passati: ore - obiettivo; oggi: solo l'eventuale straordinario (il deficit si conta a fine giornata)
-    const bal = mDays.reduce((s, k) => k < today ? s + dayMs(k, now) - tgt : k === today ? s + Math.max(0, dayMs(k, now) - tgt) : s, 0);
+    // giorni passati: ore lavorate + assenze - obiettivo; oggi: solo l'eventuale straordinario; giorni futuri esclusi
+    const bal = mDays.reduce((s, k) => { const v = dayMs(k, now) + absMs(k) - targetFor(k);
+      return k < today ? s + v : k === today ? s + Math.max(0, v) : s; }, 0);
     const balEl = $("mBal"); balEl.textContent = signed(bal);
     balEl.style.color = bal >= 0 ? "var(--green)" : "var(--warn)";
 
     const pc = $("payCard");
     if (Number(settings.pay) > 0) {
-      const mp = monthPay(mKey, now);
+      const mp = monthStats(mKey, now);
       pc.hidden = false;
       $("payTot").textContent = eur.format(mp.total);
-      $("payDet").textContent = `${dur(mp.ord)} ordinarie · ${dur(mp.ot)} straord. (+${Number(settings.ot) || 0}%)`;
+      const parts = [`${dur(mp.ord)} ordinarie`, `${dur(mp.ot)} straord.`];
+      if (mp.absH) parts.push(`${dur(mp.absH)} assenze pagate`);
+      if (mp.night && Number(settings.otN)) parts.push(`${dur(mp.night)} notturne`);
+      if (mp.fest && Number(settings.otF)) parts.push(`${dur(mp.fest)} festive`);
+      $("payDet").textContent = parts.join(" · ");
     } else pc.hidden = true;
 
     renderHistory(now);
@@ -401,24 +528,47 @@
   }
 
   function renderHistory(now) {
-    const keys = Object.keys(days).filter(k => days[k].p.length).sort().reverse();
+    const keys = Object.keys(days).filter(hasData).sort().reverse();
     const months = [...new Set([dayKey(new Date()).slice(0, 7), ...keys.map(k => k.slice(0, 7))])].sort().reverse();
     if (!months.includes(selMonth)) selMonth = months[0];
     $("months").innerHTML = months.map(m => `<button data-m="${m}" class="${m === selMonth ? "sel" : ""}">${esc(fmtMonth(m))}</button>`).join("");
 
     const list = keys.filter(k => k.startsWith(selMonth));
-    const sm = monthPay(selMonth, now);
-    $("histTot").textContent = list.length ? `Totale ${fmtMonth(selMonth)}: ${dur(sm.ord + sm.ot)} in ${list.length} giorni` + (Number(settings.pay) > 0 ? ` · stima ${eur.format(sm.total)}` : "") : "";
+    const sm = monthStats(selMonth, now);
+    let tot = list.length ? `Totale ${fmtMonth(selMonth)}: ${dur(sm.worked)} lavorate in ${list.filter(k => days[k].p.length).length} giorni` : "";
+    const absTxt = Object.entries(sm.abs).map(([t, ms]) => `${ABS[t].toLowerCase()} ${dur(ms)}`).join(", ");
+    if (absTxt) tot += ` · ${absTxt}`;
+    if (list.length && Number(settings.pay) > 0) tot += ` · stima ${eur.format(sm.total)}`;
+    $("histTot").textContent = tot;
+    $("chart").innerHTML = list.length ? chartHTML(selMonth, now) : "";
     if (!list.length) { $("history").innerHTML = `<div class="empty">Nessuna timbratura in questo mese.</div>`; return; }
-    const tgt = targetMs();
     $("history").innerHTML = list.map(k => {
-      const ms = dayMs(k, now);
-      const cls = !tgt ? "" : ms >= tgt ? "over" : "under";
+      const ms = dayMs(k, now), a = absMs(k), tg = targetFor(k), d = days[k];
+      const cls = !tg ? (ms ? "over" : "") : ms + a >= tg ? "over" : "under";
+      const tags = [holidayName(k) ? `🇮🇹 ${esc(holidayName(k))}` : "", d.t ? `${ABS_ICON[d.t]} ${ABS[d.t]} ${num1(d.h)}h` : "", d.n ? "📝" : ""].filter(Boolean).join(" · ");
+      const absRow = d.t ? `<div class="row"><div><div class="t">${ABS_ICON[d.t]} ${ABS[d.t]}</div><div class="d">${num1(d.h)}h pagate</div></div><button class="edit" data-abs="${k}">Modifica</button></div>` : "";
+      const noteRow = d.n ? `<div class="row note"><div class="d" style="white-space:pre-wrap">📝 ${esc(d.n)}</div></div>` : "";
       return `<div class="day ${openDays.has(k) ? "open" : ""}" data-day="${k}">
-        <div class="day-h" data-toggle="${k}"><span class="n">${esc(fmtDay(k))}</span><span class="tot ${cls}">${dur(ms)}</span></div>
-        <div class="day-b">${punchRows(k, now)}</div>
+        <div class="day-h" data-toggle="${k}"><span class="n">${esc(fmtDay(k))}${tags ? `<small class="tags">${tags}</small>` : ""}</span><span class="tot ${cls}">${dur(ms + a)}</span></div>
+        <div class="day-b">${absRow}${punchRows(k, now)}${noteRow}
+          <div class="day-actions"><button class="link" data-note="${k}">📝 ${d.n ? "Modifica nota" : "Aggiungi nota"}</button></div></div>
       </div>`;
     }).join("");
+  }
+
+  // grafico del mese: una barra per giorno (ore lavorate + assenze), linea dell'obiettivo
+  function chartHTML(month, now) {
+    const first = keyToDate(month + "-01"), n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    const vals = [];
+    for (let d = 1; d <= n; d++) { const k = `${month}-${pad(d)}`; vals.push({ k, w: days[k] ? dayMs(k, now) : 0, a: absMs(k), tg: targetFor(k) }); }
+    const max = Math.max(3600000 * 4, ...vals.map(v => Math.max(v.w + v.a, v.tg)));
+    const today = dayKey(new Date());
+    return `<div class="chart">${vals.map((v, i) => {
+      const hw = v.w / max * 100, ha = v.a / max * 100, over = v.w > 0 && v.w + v.a > v.tg;
+      return `<div class="cb${v.k === today ? " today" : ""}" title="${esc(fmtDay(v.k))}: ${dur(v.w + v.a)}">
+        <div class="cs"><div class="ca" style="height:${ha}%"></div><div class="cw${over ? " over" : ""}" style="height:${hw}%"></div>${v.tg ? `<div class="ct" style="bottom:${v.tg / max * 100}%"></div>` : ""}</div>
+        <div class="cl">${(i + 1) % 5 === 0 || i === 0 ? i + 1 : ""}</div></div>`;
+    }).join("")}</div>`;
   }
 
   // ---------- sheets (edit / add / settings) ----------
@@ -432,7 +582,8 @@
     const p = editing ? days[k].p[idx] : null;
     const dateVal = editing ? k : dayKey(new Date());
     sheet.innerHTML = `
-      <h3>${forgot ? "A che ora sei uscito?" : editing ? "Modifica timbratura" : "Aggiungi timbratura"}</h3>
+      <h3>${forgot ? "A che ora sei uscito?" : editing ? "Modifica timbratura" : "Aggiungi"}</h3>
+      ${!editing ? `<div class="seg" style="margin-bottom:14px"><button class="sel">Turno di lavoro</button><button id="toAbs">Ferie / assenza</button></div>` : ""}
       ${forgot ? `<div class="sub" style="margin-bottom:12px">Il turno iniziato ${esc(fmtDay(k))} alle ${hm(days[k].p[idx].i)} non è mai stato chiuso.</div>` : ""}
       <div class="field"><label>Giorno</label><input type="date" id="fDate" value="${dateVal}"></div>
       <div class="field"><label>Entrata</label><input type="time" id="fIn" value="${p ? hm(p.i) : "09:00"}"></div>
@@ -445,6 +596,7 @@
       </div>`;
     veil.classList.add("show");
     $("fCancel").onclick = closeSheet;
+    if (!editing) $("toAbs").onclick = () => openAbsenceSheet(null);
     if (editing) {
       let armed = false;
       $("fDel").onclick = async () => {
@@ -490,8 +642,87 @@
     };
   }
 
+  // ---------- ferie, malattia, permessi, festivi ----------
+  function openAbsenceSheet(k) {
+    const editing = !!(k && days[k]?.t);
+    let type = editing ? days[k].t : "ferie";
+    const d0 = k || dayKey(new Date());
+    sheet.innerHTML = `
+      <h3>${editing ? "Modifica assenza" : "Aggiungi"}</h3>
+      ${!editing ? `<div class="seg" style="margin-bottom:14px"><button id="toShift">Turno di lavoro</button><button class="sel">Ferie / assenza</button></div>` : ""}
+      <div class="field"><label>Tipo</label><div class="seg" id="aType">${Object.keys(ABS).map(t => `<button data-a="${t}">${ABS_ICON[t]} ${ABS[t]}</button>`).join("")}</div></div>
+      <div class="two">
+        <div class="field"><label>${editing ? "Giorno" : "Dal"}</label><input type="date" id="aFrom" value="${d0}" ${editing ? "disabled" : ""}></div>
+        ${editing ? "" : `<div class="field"><label>Al (facoltativo)</label><input type="date" id="aTo" value=""></div>`}
+      </div>
+      <div class="field"><label id="aHl">Ore pagate per giorno</label><input type="text" id="aH" inputmode="decimal" placeholder="automatico" value="${editing ? num1(days[k].h) : ""}"></div>
+      <div class="sub" id="aHint"></div>
+      <div class="err" id="aErr"></div>
+      <div class="btns">
+        ${editing ? '<button class="btn d" id="aDel">Elimina</button>' : ""}
+        <button class="btn s" id="aCancel">Annulla</button>
+        <button class="btn p" id="aSave">Salva</button>
+      </div>`;
+    veil.classList.add("show");
+    const paint = () => {
+      sheet.querySelectorAll("#aType button").forEach(b => b.classList.toggle("sel", b.dataset.a === type));
+      $("aHint").textContent = type === "permesso" ? "Permesso: scrivi le ore (es. 2 o 1,5)." :
+        "Se lasci vuoto usa le ore previste per quel giorno. In un periodo vengono saltati i giorni di riposo e i festivi.";
+    };
+    paint();
+    $("aType").onclick = e => { const b = e.target.closest("[data-a]"); if (b) { type = b.dataset.a; paint(); } };
+    if (!editing) $("toShift").onclick = () => openPunchSheet(null, null);
+    $("aCancel").onclick = closeSheet;
+    if (editing) {
+      let armed = false;
+      $("aDel").onclick = () => {
+        if (!armed) { armed = true; $("aDel").textContent = "Conferma"; return; }
+        delete days[k].t; delete days[k].h; store.save(); closeSheet(); render(); toast("Assenza eliminata");
+      };
+    }
+    $("aSave").onclick = () => {
+      const from = $("aFrom").value, to = editing ? from : ($("aTo").value || from);
+      if (!from) { $("aErr").textContent = "Scegli il giorno."; return; }
+      if (to < from) { $("aErr").textContent = "La data finale è prima di quella iniziale."; return; }
+      const raw = String($("aH").value).trim().replace(",", ".");
+      const hIn = raw === "" ? null : parseFloat(raw);
+      if (hIn !== null && (isNaN(hIn) || hIn <= 0 || hIn > 24)) { $("aErr").textContent = "Ore non valide (es. 8 o 2,5)."; return; }
+      if (type === "permesso" && hIn === null) { $("aErr").textContent = "Per il permesso scrivi quante ore."; return; }
+      const list = [];
+      for (const d = keyToDate(from); dayKey(d) <= to; d.setDate(d.getDate() + 1)) {
+        const dk = dayKey(d);
+        if (from !== to && !dayTargetH(dk) && type !== "festivo") continue; // salta riposi e festivi nei periodi
+        list.push(dk);
+        if (list.length > 62) { $("aErr").textContent = "Periodo troppo lungo (massimo 2 mesi)."; return; }
+      }
+      if (!list.length) { $("aErr").textContent = "Nel periodo ci sono solo giorni di riposo."; return; }
+      for (const dk of list) {
+        const h = hIn ?? dayTargetH(dk) ?? 0;
+        days[dk] = days[dk] || { p: [] };
+        days[dk].t = type; days[dk].h = h || (Number(settings.target) || 8);
+      }
+      openDays.add(list[0]); selMonth = list[0].slice(0, 7);
+      store.save(); closeSheet(); render();
+      toast(list.length > 1 ? `${ABS[type]}: ${list.length} giorni salvati` : `${ABS[type]} salvato`);
+    };
+  }
+
+  // ---------- note del giorno ----------
+  function openNoteSheet(k) {
+    const cur = days[k]?.n || "";
+    sheet.innerHTML = `
+      <h3>Nota · ${esc(fmtDay(k))}</h3>
+      <div class="field"><textarea id="nTxt" maxlength="300" rows="4" placeholder="es. trasferta cantiere Bergamo, uscito prima per visita…">${esc(cur)}</textarea></div>
+      <div class="btns">${cur ? '<button class="btn d" id="nDel">Elimina</button>' : ""}<button class="btn s" id="nCancel">Annulla</button><button class="btn p" id="nSave">Salva</button></div>`;
+    veil.classList.add("show");
+    $("nCancel").onclick = closeSheet;
+    const saveNote = v => { days[k] = days[k] || { p: [] }; if (v) days[k].n = v; else delete days[k].n; store.save(); closeSheet(); render(); };
+    $("nSave").onclick = () => { saveNote($("nTxt").value.trim().slice(0, 300)); toast("Nota salvata"); };
+    if (cur) $("nDel").onclick = () => { saveNote(""); toast("Nota eliminata"); };
+  }
+
   function openSettings() {
-    let color = settings.color, theme = settings.theme;
+    let color = settings.color, theme = settings.theme, round = Number(settings.round) || 0;
     const num = v => String(v ?? "").replace(".", ",");
     sheet.innerHTML = `
       <h3>Impostazioni</h3>
@@ -501,11 +732,18 @@
       <div class="field"><label>Tema</label><div class="seg" id="sTheme">
         <button data-t="dark">Scuro</button><button data-t="light">Chiaro</button><button data-t="auto">Automatico</button></div></div>
       <h4>Orario</h4>
-      <div class="field"><label>Ore lavorative al giorno</label><input type="text" id="sTarget" inputmode="decimal" value="${num(settings.target)}"></div>
+      <div class="field"><label>Ore lavorative al giorno (lun–ven)</label><input type="text" id="sTarget" inputmode="decimal" value="${num(settings.target)}"></div>
+      <div class="field"><label>Ore per ogni giorno (0 = riposo)</label><div class="week">${weekHours().map((h, i) =>
+        `<div><label>${WD[i]}</label><input type="text" inputmode="decimal" id="sW${i}" value="${num(h)}"></div>`).join("")}</div></div>
+      <div class="field"><label>Arrotondamento (come il badge aziendale)</label><div class="seg" id="sRound">${[0, 5, 10, 15, 30].map(m =>
+        `<button data-r="${m}">${m ? m + " min" : "No"}</button>`).join("")}</div></div>
+      <div class="sub" style="margin-top:-4px">Con l'arrotondamento l'entrata va al blocco successivo e l'uscita a quello precedente (es. 15 min: 08:07 → 08:15, 17:08 → 17:00).</div>
       <h4>Paga (facoltativo)</h4>
       <div class="two">
         <div class="field"><label>Paga oraria lorda (€)</label><input type="text" id="sPay" inputmode="decimal" placeholder="es. 9,50" value="${Number(settings.pay) > 0 ? num(settings.pay) : ""}"></div>
         <div class="field"><label>Maggiorazione straord. (%)</label><input type="text" id="sOt" inputmode="decimal" value="${num(settings.ot)}"></div>
+        <div class="field"><label>Extra notturno 22–6 (%)</label><input type="text" id="sOtN" inputmode="decimal" value="${num(settings.otN)}"></div>
+        <div class="field"><label>Extra domenica/festivi (%)</label><input type="text" id="sOtF" inputmode="decimal" value="${num(settings.otF)}"></div>
       </div>
       <div class="sub">Stima indicativa del lordo: la busta paga include anche tasse, contributi, ferie e altre voci. Lascia vuota la paga per nascondere la stima.</div>
       <div class="err" id="sErr"></div>
@@ -513,19 +751,109 @@
     veil.classList.add("show");
     const paintTheme = () => sheet.querySelectorAll("#sTheme button").forEach(b => b.classList.toggle("sel", b.dataset.t === theme));
     paintTheme();
+    const paintRound = () => sheet.querySelectorAll("#sRound button").forEach(b => b.classList.toggle("sel", +b.dataset.r === round));
+    paintRound();
+    $("sRound").onclick = e => { const b = e.target.closest("[data-r]"); if (b) { round = +b.dataset.r; paintRound(); } };
+    $("sTarget").addEventListener("input", () => { const v = $("sTarget").value; for (let i = 0; i < 5; i++) $("sW" + i).value = v; });
     $("sTheme").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { theme = b.dataset.t; paintTheme(); } };
     $("sColors").onclick = e => { const b = e.target.closest("[data-c]"); if (b) { color = b.dataset.c; sheet.querySelectorAll(".sw").forEach(x => x.classList.toggle("sel", x === b)); } };
     $("sCancel").onclick = closeSheet;
     $("sSave").onclick = async () => {
       const parse = id => { const t = String($(id).value).trim().replace(",", "."); return t === "" ? 0 : parseFloat(t); };
-      const target = parse("sTarget"), pay = parse("sPay"), ot = parse("sOt");
+      const target = parse("sTarget"), pay = parse("sPay"), ot = parse("sOt"), otN = parse("sOtN"), otF = parse("sOtF");
+
+      if ([otN, otF].some(v => isNaN(v) || v < 0 || v > 300)) { $("sErr").textContent = "Maggiorazione non valida (es. 20)."; return; }
       if (isNaN(target) || target < 0 || target > 24) { $("sErr").textContent = "Ore al giorno: scrivi un numero tra 0 e 24 (es. 8 o 7,5)."; return; }
+      const week = WD.map((_, i) => parse("sW" + i));
+      if (week.some(h => isNaN(h) || h < 0 || h > 24)) { $("sErr").textContent = "Ore per giorno: numeri tra 0 e 24."; return; }
       if (isNaN(pay) || pay < 0 || pay > 1000) { $("sErr").textContent = "Paga oraria non valida (es. 9,50)."; return; }
       if (isNaN(ot) || ot < 0 || ot > 300) { $("sErr").textContent = "Maggiorazione non valida (es. 25)."; return; }
-      settings = Object.assign({}, settings, { target, pay, ot, color, theme, name: $("sName").value.trim().slice(0, 40) || DEFAULTS.name });
+      settings = Object.assign({}, settings, { target, week, round, otN, otF, pay, ot, color, theme, name: $("sName").value.trim().slice(0, 40) || DEFAULTS.name });
       closeSheet(); render(); toast("Impostazioni salvate");
       try { await store.writeSettings(); } catch (e) { toast("Errore nel salvataggio"); }
     };
+  }
+
+  // ---------- file Excel (.xlsx) creato direttamente nell'app ----------
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function zipStore(files) {
+    const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+    for (const f of files) {
+      const nm = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, 0, 2], [12, 0x21, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, nm.length, 2], [28, 0, 2]]
+        .forEach(([o, v, n]) => n === 4 ? lh.setUint32(o, v, true) : lh.setUint16(o, v, true));
+      parts.push(new Uint8Array(lh.buffer), nm, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, 0, 2], [14, 0x21, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4],
+       [28, nm.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, off, 4]]
+        .forEach(([o, v, n]) => n === 4 ? ch.setUint32(o, v, true) : ch.setUint16(o, v, true));
+      central.push(new Uint8Array(ch.buffer), nm);
+      off += 30 + nm.length + data.length;
+    }
+    const size = central.reduce((a, c) => a + c.length, 0), end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, size, true); end.setUint32(16, off, true);
+    return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
+  const xmlEsc = v => String(v).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+  const colL = i => String.fromCharCode(65 + i);
+  // celle: numero → valore; {d:"YYYY-MM-DD"} → data; {h:ore} → ore decimali; {e:euro}; {b:"testo"} → grassetto; stringa → testo
+  function sheetXML(rows, widths) {
+    const serial = k => { const [y, m, d] = k.split("-").map(Number); return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000; };
+    const cell = (v, r, c) => {
+      const ref = colL(c) + r;
+      if (v == null || v === "") return "";
+      if (typeof v === "number") return `<c r="${ref}"><v>${v}</v></c>`;
+      if (v.d) return `<c r="${ref}" s="2"><v>${serial(v.d)}</v></c>`;
+      if (v.h != null) return `<c r="${ref}" s="3"><v>${Math.round(v.h * 100) / 100}</v></c>`;
+      if (v.e != null) return `<c r="${ref}" s="4"><v>${Math.round(v.e * 100) / 100}</v></c>`;
+      if (v.b != null) return `<c r="${ref}" s="1" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v.b)}</t></is></c>`;
+      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    };
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+      `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+      `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>` +
+      rows.map((row, ri) => `<row r="${ri + 1}">${row.map((v, ci) => cell(v, ri + 1, ci)).join("")}</row>`).join("") + `</sheetData></worksheet>`;
+  }
+  function buildXlsx(month) {
+    const now = Date.now(), H = 3600000, keys = Object.keys(days).filter(k => k.startsWith(month) && hasData(k)).sort();
+    const r1 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Tipo" }, { b: "Entrata" }, { b: "Uscita" }, { b: "Ore" }, { b: "Note" }]];
+    const wd = k => keyToDate(k).toLocaleDateString("it-IT", { weekday: "long" });
+    for (const k of keys) {
+      const d = days[k];
+      if (d.t) r1.push([{ d: k }, wd(k), ABS[d.t], "", "", { h: d.h }, d.n || ""]);
+      d.p.forEach((p, i) => { const e = eff(p, now);
+        r1.push([{ d: k }, wd(k), isFestive(k) ? "Lavoro (festivo)" : "Lavoro", hm(e.i), p.o != null ? hm(e.o) : "in corso", { h: punchMs(p, now) / H }, !d.t && i === 0 ? d.n || "" : ""]); });
+      if (!d.t && !d.p.length && d.n) r1.push([{ d: k }, wd(k), "Nota", "", "", "", d.n]);
+    }
+    const r2 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Ore lavorate" }, { b: "Assenze pagate" }, { b: "Ore previste" }, { b: "Differenza" }, { b: "Festività" }]];
+    for (const k of keys) {
+      const w = dayMs(k, now) / H, a = absMs(k) / H, t = targetFor(k) / H;
+      r2.push([{ d: k }, wd(k), { h: w }, { h: a }, { h: t }, { h: w + a - t }, holidayName(k) || ""]);
+    }
+    const st = monthStats(month, now), pay = Number(settings.pay) || 0;
+    const r3 = [[{ b: "Voce" }, { b: "Valore" }],
+      ["Mese", fmtMonth(month)], ["Ore lavorate", { h: st.worked / H }], ["di cui ordinarie", { h: st.ord / H }], ["di cui straordinario", { h: st.ot / H }],
+      ["di cui notturne (22-6)", { h: st.night / H }], ["di cui domenica/festivi", { h: st.fest / H }]];
+    for (const t of Object.keys(ABS)) if (st.abs[t]) r3.push([`${ABS[t]} (ore)`, { h: st.abs[t] / H }]);
+    r3.push(["Giorni con presenze o assenze", st.days]);
+    if (settings.round) r3.push(["Arrotondamento", `${settings.round} minuti`]);
+    if (pay) r3.push(["Paga oraria lorda", { e: pay }], ["Maggiorazione straordinari %", Number(settings.ot) || 0],
+      ["Extra notturno %", Number(settings.otN) || 0], ["Extra domenica/festivi %", Number(settings.otF) || 0], [{ b: "Stima lordo del mese" }, { e: st.total }]);
+    r3.push(["", ""], ["Creato con l'app Timbrature", new Date().toLocaleString("it-IT")]);
+    const sheets = [["Timbrature", sheetXML(r1, [12, 12, 18, 9, 9, 8, 40])], ["Giorni", sheetXML(r2, [12, 12, 13, 15, 13, 12, 22])], ["Totali", sheetXML(r3, [32, 22])]];
+    const ns = 'xmlns="http://schemas.openxmlformats.org/package/2006/relationships"';
+    const files = [
+      { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` },
+      { name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships ${ns}><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+      { name: "xl/workbook.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map(([n], i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>` },
+      { name: "xl/_rels/workbook.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships ${ns}>${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+      { name: "xl/styles.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="3"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="0.00"/><numFmt numFmtId="166" formatCode="#,##0.00 &quot;€&quot;"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` },
+      ...sheets.map(([, x], i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: x }))
+    ];
+    return zipStore(files);
   }
 
   // ---------- export / backup ----------
@@ -533,12 +861,12 @@
   function buildMonthText(month) {
     const lines = [];
     Object.keys(days).filter(k => k.startsWith(month) && days[k].p.length).sort().forEach(k => {
-      days[k].p.forEach(p => lines.push(`${k};${hm(p.i)};${p.o != null ? hm(p.o) : ""}`));
+      days[k].p.forEach(p => { const e = eff(p, Date.now()); lines.push(`${k};${hm(e.i)};${p.o != null ? hm(e.o) : ""}`); });
     });
     return lines.join("\n");
   }
   async function shareFile(filename, text, mime) {
-    const file = new File([text], filename, { type: mime });
+    const file = new File([text], filename, { type: mime }); // text può essere testo o Blob
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
@@ -557,9 +885,10 @@
     const n = text ? text.split("\n").length : 0;
     sheet.innerHTML = `
       <h3>Esporta ${esc(fmtMonth(selMonth))}</h3>
-      <div class="sub" style="margin-bottom:14px">${n} timbrature. Il testo è nel formato del file Excel <b>Controllo_ore.xlsx</b>: incollalo nella cella A2 del foglio "Timbrature".</div>
+      <div class="sub" style="margin-bottom:14px"><b>Scarica Excel</b> crea il file del mese già calcolato (timbrature, giorni, totali e stima): salvalo in File o invialo. In alternativa puoi copiare il testo (${n} timbrature) per il file Controllo_ore.xlsx.</div>
       <div class="btns" style="flex-direction:column">
-        <button class="btn p" id="xCopy">Copia il testo</button>
+        <button class="btn p" id="xXlsx">Scarica Excel (.xlsx)</button>
+        <button class="btn s" id="xCopy">Copia il testo</button>
         <button class="btn s" id="xShare">Salva / invia come file .txt</button>
         <button class="btn s" id="xClose">Chiudi</button>
       </div>`;
@@ -569,6 +898,11 @@
       if (!text) { toast("Nessuna timbratura nel mese"); return; }
       try { await navigator.clipboard.writeText(text); toast("Testo copiato"); }
       catch (e) { toast("Copia non riuscita, usa il file"); }
+    };
+    $("xXlsx").onclick = () => {
+      if (!Object.keys(days).some(k => k.startsWith(selMonth) && hasData(k))) { toast("Nessun dato nel mese"); return; }
+      try { shareFile(`Ore-${selMonth}.xlsx`, buildXlsx(selMonth), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
+      catch (e) { toast("Creazione del file non riuscita"); }
     };
     $("xShare").onclick = () => text ? shareFile(`timbrature-${selMonth}.txt`, text, "text/plain") : toast("Nessuna timbratura nel mese");
   }
@@ -592,16 +926,13 @@
         const j = JSON.parse(await f.text());
         if (j.app !== "timbrature" || typeof j.days !== "object") throw 0;
         const clean = {};
-        for (const [dk, v] of Object.entries(j.days)) {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !v || !Array.isArray(v.p)) continue;
-          const p = v.p.filter(x => x && Number.isFinite(x.i) && (x.o == null || Number.isFinite(x.o)))
-                       .map(x => ({ i: x.i, o: x.o ?? null }));
-          if (p.length) clean[dk] = { p: sortPunches(p) };
-        }
+        for (const [dk, v] of Object.entries(j.days)) { const c = cleanDay(dk, v); if (c) clean[dk] = c; }
         if (!Object.keys(clean).length) throw 0;
         const js = j.settings || {}, okS = {};
-        const lim = { target: 24, pay: 1000, ot: 300 };
-        for (const key of ["target", "pay", "ot"]) if (js[key] !== "" && Number.isFinite(+js[key]) && +js[key] >= 0 && +js[key] <= lim[key]) okS[key] = +js[key];
+        const lim = { target: 24, pay: 1000, ot: 300, otN: 300, otF: 300 };
+        if (Array.isArray(js.week) && js.week.length === 7 && js.week.every(h => Number.isFinite(+h) && +h >= 0 && +h <= 24)) okS.week = js.week.map(Number);
+        if ([0, 5, 10, 15, 30].includes(+js.round)) okS.round = +js.round;
+        for (const key of ["target", "pay", "ot", "otN", "otF"]) if (js[key] !== "" && Number.isFinite(+js[key]) && +js[key] >= 0 && +js[key] <= lim[key]) okS[key] = +js[key];
         if (typeof js.name === "string") okS.name = js.name.slice(0, 40);
         if (COLORS.includes(js.color)) okS.color = js.color;
         if (["dark", "light", "auto"].includes(js.theme)) okS.theme = js.theme;
@@ -617,7 +948,8 @@
 
   // ---------- info ----------
   function openInfo() {
-    const t = Number(settings.target) || 0;
+    const wh = weekHours().map((h, i) => `${WD[i]} ${num1(h)}h`).join(" · ");
+    const rnd = Number(settings.round) || 0;
     sheet.innerHTML = `<div class="info">
       <h3>Come funziona</h3>
       <h4>⏱️ Timbrare</h4>
@@ -632,31 +964,43 @@
       <ul>
         <li>A <b>mezzanotte</b> "Oggi" riparte da zero; i giorni passati restano nello Storico.</li>
         <li>Un <b>turno di notte</b> (es. 22:00 → 06:00) viene contato tutto sul giorno in cui sei entrato.</li>
-        <li>Nelle due notti del <b>cambio dell'ora</b> (fine marzo e fine ottobre) l'app conta le ore realmente lavorate: un turno 22:00 → 06:00 può valere 7 o 9 ore. Il file Excel guarda solo gli orari e conta 8 ore.</li>
+        <li>Nelle due notti del <b>cambio dell'ora</b> (fine marzo e fine ottobre) l'app conta le ore realmente lavorate: un turno 22:00 → 06:00 può valere 7 o 9 ore. Il file Excel di controllo guarda solo gli orari e conta 8 ore.</li>
       </ul>
       <h4>🧮 Come conta le ore</h4>
       <ul>
-        <li>Conta i <b>minuti interi</b> (08:00:50 vale 08:00), come il file Excel di controllo.</li>
-        <li><b>Obiettivo giornaliero</b>: ${String(t).replace(".", ",")} ore (modificabile in Impostazioni). Oltre l'obiettivo le ore sono <b>straordinario</b>.</li>
-        <li><b>Saldo mese</b>: per i giorni passati, ore lavorate meno obiettivo; per oggi conta solo l'eventuale straordinario (le ore mancanti si contano a fine giornata). I giorni senza timbrature (es. weekend) non contano.</li>
+        <li>Conta i <b>minuti interi</b> (08:00:50 vale 08:00).</li>
+        <li><b>Ore previste per giorno</b>: ${wh}. Si cambiano in Impostazioni; 0 = giorno di riposo.</li>
+        <li>Oltre le ore previste è <b>straordinario</b>. Nei giorni di riposo e nelle <b>festività nazionali</b> (Natale, Pasquetta, 25 aprile…) tutte le ore lavorate sono straordinario.</li>
+        <li><b>Arrotondamento</b>: ${rnd ? `attivo a ${rnd} minuti: l'entrata va al blocco successivo e l'uscita a quello precedente (es. 08:07 → 08:${pad(Math.ceil(7 / rnd) * rnd)}).` : "disattivato (si attiva in Impostazioni se la tua azienda arrotonda le timbrature)."}</li>
+        <li><b>Saldo mese</b>: per i giorni passati, ore lavorate + assenze pagate − ore previste; per oggi conta solo l'eventuale straordinario. I giorni senza niente segnato non contano.</li>
         <li><b>Settimana</b>: da lunedì a domenica.</li>
       </ul>
+      <h4>🏖️ Ferie, malattia, permessi, festivi</h4>
+      <ul>
+        <li>Con <b>+ Aggiungi → Ferie / assenza</b> segni un giorno o un periodo (es. ferie dal 10 al 21 agosto). Nei periodi vengono saltati i giorni di riposo e le festività.</li>
+        <li>Le ore pagate sono quelle previste per quel giorno, oppure quelle che scrivi tu. Il <b>permesso</b> è di solito di qualche ora (es. 2).</li>
+        <li><b>Festivo</b> serve per feste locali (es. il patrono) che non sono già nel calendario nazionale.</li>
+        <li>Le assenze contano nel saldo e nella stima, ma non come ore lavorate.</li>
+      </ul>
+      <h4>⏰ "Sei ancora al lavoro?"</h4>
+      <p>Dopo qualche giorno l'app impara a che ora esci di solito. Se il turno è ancora aperto <b>45 minuti dopo</b> quell'ora, appare un avviso: puoi registrare l'uscita all'ora abituale con un tocco, oppure dire che stai ancora lavorando. Se dimentichi l'uscita per più di <b>14 ore</b>, l'app ti chiede l'ora giusta.</p>
       <h4>🛡️ Controlli automatici</h4>
       <ul>
         <li><b>Doppio tocco</b>: per 5 secondi dopo una timbratura il pulsante è bloccato.</li>
-        <li><b>Uscita dimenticata</b>: se un turno resta aperto più di <b>14 ore</b>, l'app te lo segnala e chiede l'ora di uscita.</li>
         <li>Non accetta turni più lunghi di <b>16 ore</b>, uscite nel futuro, turni sovrapposti o due turni aperti insieme.</li>
       </ul>
-      <h4>✏️ Correggere</h4>
-      <p>Nello <b>Storico</b> tocca un giorno e poi <b>Modifica</b> per cambiare o eliminare una timbratura. Con <b>+ Aggiungi</b> inserisci a mano un turno dimenticato.</p>
+      <h4>✏️ Correggere e annotare</h4>
+      <p>Nello <b>Storico</b> tocca un giorno: <b>Modifica</b> cambia o elimina una timbratura o un'assenza, <b>📝 Aggiungi nota</b> salva un appunto (es. "cantiere Bergamo"). Con <b>+ Aggiungi</b> inserisci a mano un turno dimenticato.</p>
+      <h4>📊 Grafico</h4>
+      <p>Sopra lo storico c'è una barra per ogni giorno del mese: colorata = ore lavorate (verde se hai superato le ore previste), grigia = assenze, linea sottile = ore previste.</p>
       <h4>💶 Stima paga</h4>
-      <p>Se in Impostazioni metti la paga oraria, l'app stima il <b>lordo</b> del mese: ore ordinarie × paga + straordinari × paga × maggiorazione. È indicativa: la busta paga include tasse, contributi e altre voci.</p>
+      <p>Con la paga oraria in Impostazioni l'app stima il <b>lordo</b> del mese: (ore ordinarie + assenze pagate) × paga + straordinari × paga × maggiorazione, più gli extra per ore <b>notturne</b> (22–6) e di <b>domenica/festivi</b> se li imposti. È indicativa: la busta paga include tasse, contributi e altre voci.</p>
       <h4>📤 Controllo con la busta paga</h4>
-      <p><b>Esporta mese</b> → <b>Copia il testo</b>, poi incollalo nella cella A2 del foglio "Timbrature" del file <b>Controllo_ore.xlsx</b>. Nel foglio "Mese" scegli anno e mese.</p>
+      <p><b>Esporta mese → Scarica Excel</b> crea un file .xlsx con tre fogli: timbrature, riepilogo per giorno e totali del mese (con la stima). Salvalo in File, aprilo con Excel o Numbers, oppure invialo. Resta anche la vecchia opzione "Copia il testo" per Controllo_ore.xlsx.</p>
       <h4>💾 Dove sono i dati</h4>
       <ul>
         <li>Le timbrature restano <b>solo su questo iPhone</b>: nessuno le vede, nemmeno chi ha fatto l'app.</li>
-        <li>Usa sempre l'app dall'<b>icona sulla schermata Home</b>, non da Safari.</li>
+        <li>Usa sempre l'app dall'<b>icona sulla schermata Home</b>, non da Safari, e non cancellare l'icona: perderesti i dati.</li>
         <li>Fai ogni tanto un <b>Backup</b> e salvalo in File/iCloud: se cambi telefono potrai ripristinarlo.</li>
       </ul>
       <h4>🔄 Aggiornamenti</h4>
@@ -670,7 +1014,7 @@
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "2.0";
+  const APP_VERSION = "3.0";
   $("ver").textContent = APP_VERSION;
   const newer = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
@@ -701,6 +1045,10 @@
   $("backupBtn").onclick = openBackup;
   $("infoBtn").onclick = openInfo;
   document.addEventListener("click", e => {
+    const ab = e.target.closest("[data-abs]");
+    if (ab) { openAbsenceSheet(ab.dataset.abs); return; }
+    const nt = e.target.closest("[data-note]");
+    if (nt) { openNoteSheet(nt.dataset.note); return; }
     const ed = e.target.closest(".edit[data-k]");
     if (ed) { openPunchSheet(ed.dataset.k, Number(ed.dataset.i)); return; }
     const tg = e.target.closest("[data-toggle]");
