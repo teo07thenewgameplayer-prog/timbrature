@@ -15,7 +15,9 @@
     --text:#f2f4f8; --muted:#8b93a5; --green:#2fbf71; --green-d:#1f8f53;
     --red:#ef5a5a; --red-d:#c03e3e; --accent:#5b8cff; --warn:#f2b84b;
   }
-  body.light{--bg:#f3f4f7;--card:#ffffff;--card2:#eceef3;--line:#e0e3ea;--text:#15171c;--muted:#6b7385}
+  :root{--accent-bg:#4970cc;--accent-text:#5b8cff}
+  body.light{--bg:#f3f4f7;--card:#ffffff;--card2:#eceef3;--line:#e0e3ea;--text:#15171c;--muted:#5f6779;
+    --green:#1f7c49;--warn:#94600a;--red:#c53a3a}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   [hidden]{display:none!important}
   html,body{margin:0;background:var(--bg);color:var(--text);
@@ -33,7 +35,7 @@
   .dot.on{background:var(--green);box-shadow:0 0 0 0 rgba(47,191,113,.6);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,191,113,.55)}70%{box-shadow:0 0 0 10px rgba(47,191,113,0)}100%{box-shadow:0 0 0 0 rgba(47,191,113,0)}}
   .punch-btn{display:block;width:100%;margin:16px 0 4px;border:0;border-radius:18px;padding:22px 16px;
-    font-size:22px;font-weight:700;color:#fff;background:var(--accent);cursor:pointer;
+    font-size:22px;font-weight:700;color:#fff;background:var(--accent-bg);cursor:pointer;
     transition:transform .08s, background .2s}
   .punch-btn:active{transform:scale(.98)}
   .punch-btn.out{background:var(--red)}
@@ -56,7 +58,7 @@
   .row .d{color:var(--muted);font-size:14px}
   .live{color:var(--green)}
   h2{font-size:18px;margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center}
-  .link{background:none;border:0;color:var(--accent);font-size:15px;cursor:pointer;padding:4px}
+  .link{background:none;border:0;color:var(--accent-text);font-weight:600;font-size:15px;cursor:pointer;padding:4px}
   .day{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
   .day-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer}
   .day-h .n{font-weight:600;text-transform:capitalize}
@@ -67,7 +69,7 @@
   .edit{background:var(--card2);border:0;color:var(--text);border-radius:10px;padding:6px 10px;font-size:13px;cursor:pointer}
   .month-tabs{display:flex;gap:8px;overflow-x:auto;margin:0 0 10px;padding-bottom:2px}
   .month-tabs button{flex:none;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;cursor:pointer;text-transform:capitalize}
-  .month-tabs button.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+  .month-tabs button.sel{background:var(--accent-bg);border-color:var(--accent-bg);color:#fff}
   .empty{color:var(--muted);text-align:center;padding:22px 8px;font-size:15px}
   .tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
   .tool{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:14px;font-size:15px;cursor:pointer}
@@ -100,7 +102,7 @@
     border-radius:12px;padding:12px;font-size:17px;font-family:inherit;-webkit-appearance:none;min-height:46px}
   .btns{display:flex;gap:10px;margin-top:16px}
   .btn{flex:1;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:600;cursor:pointer}
-  .btn.p{background:var(--accent);color:#fff}
+  .btn.p{background:var(--accent-bg);color:#fff}
   .btn.s{background:var(--card2);color:var(--text)}
   .btn.d{background:transparent;color:var(--red);border:1px solid var(--red-d)}
   .err{color:var(--red);font-size:14px;min-height:18px}
@@ -178,6 +180,7 @@
     const m = Math.floor(ms / 60000);
     return `${neg ? "−" : ""}${Math.floor(m/60)}h ${pad(m%60)}m`;
   };
+  const num1 = v => String(v).replace(".", ",");
   const signed = ms => (ms >= 0 ? "+" : "") + dur(ms);
   const fmtDay = k => keyToDate(k).toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long" });
   const fmtMonth = k => keyToDate(k + "-01").toLocaleDateString("it-IT", { month:"long", year:"numeric" });
@@ -276,7 +279,12 @@
   function applyLook() {
     const light = settings.theme === "light" || (settings.theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
     document.body.classList.toggle("light", light);
-    document.documentElement.style.setProperty("--accent", COLORS.includes(settings.color) ? settings.color : DEFAULTS.color);
+    const acc = COLORS.includes(settings.color) ? settings.color : DEFAULTS.color;
+    const shade = (h, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(h.slice(i, i + 2), 16) * k).toString(16).padStart(2, "0")).join("");
+    const rs = document.documentElement.style;
+    rs.setProperty("--accent", acc);
+    rs.setProperty("--accent-bg", shade(acc, 0.8));              // sfondo con testo bianco leggibile
+    rs.setProperty("--accent-text", light ? shade(acc, 0.72) : acc); // testo colorato leggibile
     const name = (settings.name || "").trim() || DEFAULTS.name;
     $("appName").textContent = name; document.title = name;
     const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = light ? "#f3f4f7" : "#0f1115";
@@ -343,9 +351,9 @@
       $("todayMsg").innerHTML = `Turno iniziato ${esc(fmtDay(open.k))}: <b>${dur(punchMs(p, now))}</b> (contato su quel giorno)`;
     }
     else if (!tgt) $("todayMsg").textContent = "";
-    else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${settings.target}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
+    else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${num1(settings.target)}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
     else {
-      let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${settings.target}h`;
+      let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${num1(settings.target)}h`;
       if (open) { const end = now + (tgt - tMs); msg += ` · uscita prevista alle <b>${hm(end)}</b>`; }
       $("todayMsg").innerHTML = msg;
     }
@@ -449,10 +457,12 @@
     $("fSave").onclick = async () => {
       const date = $("fDate").value, tin = $("fIn").value, tout = $("fOut").value;
       if (!date || !tin) { $("fErr").textContent = "Inserisci giorno e ora di entrata."; return; }
+      if (forgot && !tout) { $("fErr").textContent = "Inserisci l'ora in cui sei uscito."; return; }
       const i = tsFrom(date, tin);
       let o = null;
       if (tout) {
-        o = tsFrom(date, tout); if (o <= i) o += 86400000; // turno a cavallo della mezzanotte
+        o = tsFrom(date, tout);
+        if (o <= i) { const nd = keyToDate(date); nd.setDate(nd.getDate() + 1); o = tsFrom(dayKey(nd), tout); } // turno a cavallo della mezzanotte (giusto anche col cambio dell'ora)
         if (o - i > MAX_SHIFT) { $("fErr").textContent = `Turno di ${dur(o - i)}: controlla gli orari (uscita prima dell'entrata?).`; return; }
         if (o > Date.now() + 60000) { $("fErr").textContent = "L'uscita non può essere nel futuro."; return; }
       }
@@ -590,7 +600,8 @@
         }
         if (!Object.keys(clean).length) throw 0;
         const js = j.settings || {}, okS = {};
-        for (const key of ["target", "pay", "ot"]) if (Number.isFinite(+js[key])) okS[key] = +js[key];
+        const lim = { target: 24, pay: 1000, ot: 300 };
+        for (const key of ["target", "pay", "ot"]) if (js[key] !== "" && Number.isFinite(+js[key]) && +js[key] >= 0 && +js[key] <= lim[key]) okS[key] = +js[key];
         if (typeof js.name === "string") okS.name = js.name.slice(0, 40);
         if (COLORS.includes(js.color)) okS.color = js.color;
         if (["dark", "light", "auto"].includes(js.theme)) okS.theme = js.theme;
@@ -621,6 +632,7 @@
       <ul>
         <li>A <b>mezzanotte</b> "Oggi" riparte da zero; i giorni passati restano nello Storico.</li>
         <li>Un <b>turno di notte</b> (es. 22:00 → 06:00) viene contato tutto sul giorno in cui sei entrato.</li>
+        <li>Nelle due notti del <b>cambio dell'ora</b> (fine marzo e fine ottobre) l'app conta le ore realmente lavorate: un turno 22:00 → 06:00 può valere 7 o 9 ore. Il file Excel guarda solo gli orari e conta 8 ore.</li>
       </ul>
       <h4>🧮 Come conta le ore</h4>
       <ul>
@@ -655,7 +667,7 @@
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "1.8";
+  const APP_VERSION = "1.9";
   $("ver").textContent = APP_VERSION;
   const newer = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
