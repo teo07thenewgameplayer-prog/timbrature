@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Timbrature">
+<meta name="theme-color" content="#0f1115">
+<title>Timbrature</title>
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="icon" href="data:image/png;base64,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">
+<style>
+  :root{
+    --bg:#0f1115; --card:#181b22; --card2:#20242d; --line:#2a2f3a;
+    --text:#f2f4f8; --muted:#8b93a5; --green:#2fbf71; --green-d:#1f8f53;
+    --red:#ef5a5a; --red-d:#c03e3e; --accent:#5b8cff; --warn:#f2b84b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
+  body{padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
+       calc(env(safe-area-inset-bottom) + 28px) calc(env(safe-area-inset-left) + 16px)}
+  .wrap{max-width:520px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-end;margin:6px 2px 16px}
+  .date{color:var(--muted);font-size:14px;text-transform:capitalize}
+  h1{margin:2px 0 0;font-size:30px;letter-spacing:-.5px}
+  .clock{font-variant-numeric:tabular-nums;font-size:30px;font-weight:600;letter-spacing:-.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px}
+  .status{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--green);box-shadow:0 0 0 0 rgba(47,191,113,.6);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,191,113,.55)}70%{box-shadow:0 0 0 10px rgba(47,191,113,0)}100%{box-shadow:0 0 0 0 rgba(47,191,113,0)}}
+  .punch-btn{display:block;width:100%;margin:16px 0 4px;border:0;border-radius:18px;padding:22px 16px;
+    font-size:22px;font-weight:700;color:#fff;background:var(--green);cursor:pointer;
+    transition:transform .08s, background .2s}
+  .punch-btn:active{transform:scale(.98)}
+  .punch-btn.out{background:var(--red)}
+  .punch-btn small{display:block;font-size:13px;font-weight:500;opacity:.85;margin-top:4px}
+  .punch-btn:disabled{opacity:.5}
+  .big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+  .label{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+  .bar{height:10px;background:var(--card2);border-radius:6px;overflow:hidden;margin:12px 0 8px}
+  .bar>div{height:100%;background:var(--accent);border-radius:6px;transition:width .4s}
+  .bar>div.done{background:var(--green)}
+  .sub{color:var(--muted);font-size:14px}
+  .sub b{color:var(--text)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+  .stat .v{font-size:19px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .row:first-child{border-top:0}
+  .row .t{font-size:16px}
+  .row .d{color:var(--muted);font-size:14px}
+  .live{color:var(--green)}
+  h2{font-size:18px;margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center}
+  .link{background:none;border:0;color:var(--accent);font-size:15px;cursor:pointer;padding:4px}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
+  .day-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer}
+  .day-h .n{font-weight:600;text-transform:capitalize}
+  .day-h .tot{font-weight:700;font-variant-numeric:tabular-nums}
+  .day-h .tot.over{color:var(--green)} .day-h .tot.under{color:var(--warn)}
+  .day-b{padding:0 16px 8px;display:none}
+  .day.open .day-b{display:block}
+  .edit{background:var(--card2);border:0;color:var(--text);border-radius:10px;padding:6px 10px;font-size:13px;cursor:pointer}
+  .month-tabs{display:flex;gap:8px;overflow-x:auto;margin:0 0 10px;padding-bottom:2px}
+  .month-tabs button{flex:none;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:14px;cursor:pointer;text-transform:capitalize}
+  .month-tabs button.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+  .empty{color:var(--muted);text-align:center;padding:22px 8px;font-size:15px}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .tool{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:14px;font-size:15px;cursor:pointer}
+  .note{font-size:13px;color:var(--warn);text-align:center;margin:8px 0}
+  /* sheet */
+  .veil{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .veil.show{display:flex}
+  .sheet{background:var(--card);width:100%;max-width:520px;border-radius:22px 22px 0 0;
+    padding:20px 18px calc(env(safe-area-inset-bottom) + 20px);border-top:1px solid var(--line)}
+  .sheet h3{margin:0 0 14px;font-size:19px}
+  .field{margin-bottom:12px}
+  .field label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+  .field input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
+    border-radius:12px;padding:12px;font-size:17px;font-family:inherit;-webkit-appearance:none;min-height:46px}
+  .btns{display:flex;gap:10px;margin-top:16px}
+  .btn{flex:1;border:0;border-radius:14px;padding:14px;font-size:16px;font-weight:600;cursor:pointer}
+  .btn.p{background:var(--accent);color:#fff}
+  .btn.s{background:var(--card2);color:var(--text)}
+  .btn.d{background:transparent;color:var(--red);border:1px solid var(--red-d)}
+  .err{color:var(--red);font-size:14px;min-height:18px}
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(30px);
+    background:#fff;color:#111;padding:11px 18px;border-radius:14px;font-size:15px;font-weight:600;opacity:0;transition:.25s;z-index:20;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="date" id="today"></div>
+      <h1>Timbrature</h1>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+  </header>
+
+  <div class="card">
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Caricamento…</span></div>
+    <button class="punch-btn" id="punchBtn" disabled>Timbra entrata</button>
+  </div>
+
+  <div class="card">
+    <div class="label">Oggi</div>
+    <div class="big" id="todayTot">0h 00m</div>
+    <div class="bar"><div id="todayBar" style="width:0%"></div></div>
+    <div class="sub" id="todayMsg"></div>
+    <div id="todayList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Settimana</div><div class="v" id="wTot">0h 00m</div></div>
+    <div class="stat"><div class="label">Mese</div><div class="v" id="mTot">0h 00m</div></div>
+    <div class="stat"><div class="label">Saldo mese</div><div class="v" id="mBal">0h 00m</div></div>
+  </div>
+
+  <div class="note" id="note" hidden></div>
+
+  <h2>Storico <button class="link" id="addBtn">+ Aggiungi</button></h2>
+  <div class="month-tabs" id="months"></div>
+  <div id="history"></div>
+
+  <div class="tools">
+    <button class="tool" id="exportBtn">Esporta mese</button>
+    <button class="tool" id="settingsBtn">Ore giornaliere</button>
+    <button class="tool" id="backupBtn" style="grid-column:1/-1">Backup / ripristino</button>
+  </div>
+</div>
+
+<div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ---------- helpers ----------
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2, "0");
+  const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const keyToDate = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d); };
+  const hm = ts => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const dur = ms => {
+    const neg = ms < 0; ms = Math.abs(ms);
+    const m = Math.floor(ms / 60000);
+    return `${neg ? "−" : ""}${Math.floor(m/60)}h ${pad(m%60)}m`;
+  };
+  const signed = ms => (ms >= 0 ? "+" : "") + dur(ms);
+  const fmtDay = k => keyToDate(k).toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long" });
+  const fmtMonth = k => keyToDate(k + "-01").toLocaleDateString("it-IT", { month:"long", year:"numeric" });
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const toast = msg => { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); };
+
+  // ---------- state ----------
+  let days = {};             // "YYYY-MM-DD" -> { p: [{i: ms, o: ms|null}] }
+  let settings = { target: 8 };  // ore giornaliere
+  let selMonth = dayKey(new Date()).slice(0, 7);
+  let openDays = new Set([dayKey(new Date())]);
+  let ready = false;
+
+  // ---------- storage (solo sul telefono) ----------
+  const LS_KEY = "timbrature.v1";
+  let storageOk = true;
+  const store = {
+    load() {
+      try { const j = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); days = j.days || {}; settings = Object.assign({ target: 8 }, j.settings || {}); }
+      catch (e) { storageOk = false; }
+    },
+    save() {
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ days, settings, saved: Date.now() })); }
+      catch (e) { storageOk = false; showNote("Impossibile salvare i dati: disattiva la navigazione privata."); }
+    },
+    async writeDay() { this.save(); },
+    async writeSettings() { this.save(); }
+  };
+
+  function initStore() {
+    store.load();
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    if (!storageOk) showNote("Impossibile salvare i dati: disattiva la navigazione privata.");
+    const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+    if (!standalone) showNote("Consiglio: tocca Condividi → \"Aggiungi alla schermata Home\" e usa l'app da lì.");
+    ready = true;
+    render();
+  }
+
+  function showNote(t) { const n = $("note"); n.textContent = t; n.hidden = false; }
+  function hideNote() { $("note").hidden = true; }
+
+  // ---------- calculations ----------
+  const punchMs = (p, now) => Math.max(0, (p.o ?? now) - p.i);
+  const dayMs = (k, now) => (days[k]?.p || []).reduce((s, p) => s + punchMs(p, now), 0);
+  const targetMs = () => (Number(settings.target) || 0) * 3600000;
+  const sortPunches = arr => arr.sort((a, b) => a.i - b.i);
+  function findOpen() {
+    for (const k of Object.keys(days).sort().reverse()) {
+      const idx = days[k].p.findIndex(p => p.o == null);
+      if (idx >= 0) return { k, idx };
+    }
+    return null;
+  }
+
+  // ---------- actions ----------
+  async function punch() {
+    const now = Date.now();
+    const open = findOpen();
+    let k;
+    if (open) {
+      k = open.k;
+      days[k].p[open.idx].o = now;
+      toast(`Uscita timbrata alle ${hm(now)}`);
+    } else {
+      k = dayKey(new Date(now));
+      days[k] = days[k] || { p: [] };
+      days[k].p.push({ i: now, o: null });
+      sortPunches(days[k].p);
+      toast(`Entrata timbrata alle ${hm(now)}`);
+      openDays.add(k);
+    }
+    if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
+    render();
+    try { await store.writeDay(k); } catch (e) { toast("Errore nel salvataggio, riprova"); }
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    const now = Date.now();
+    const today = dayKey(new Date(now));
+    const open = findOpen();
+
+    // status + button
+    const btn = $("punchBtn");
+    btn.disabled = !ready;
+    if (open) {
+      const p = days[open.k].p[open.idx];
+      $("dot").classList.add("on");
+      $("statusTxt").innerHTML = `In servizio dalle <b style="color:var(--text)">${hm(p.i)}</b>${open.k !== today ? " (" + esc(fmtDay(open.k)) + ")" : ""} · ${dur(now - p.i)}`;
+      btn.className = "punch-btn out";
+      btn.innerHTML = `Timbra uscita<small>Turno in corso da ${dur(now - p.i)}</small>`;
+    } else {
+      $("dot").classList.remove("on");
+      $("statusTxt").textContent = ready ? "Fuori servizio" : "Caricamento…";
+      btn.className = "punch-btn";
+      btn.innerHTML = `Timbra entrata<small>Inizia il turno ora</small>`;
+    }
+
+    // today
+    const tMs = dayMs(today, now), tgt = targetMs();
+    $("todayTot").textContent = dur(tMs);
+    const pct = tgt ? Math.min(100, tMs / tgt * 100) : 0;
+    const bar = $("todayBar"); bar.style.width = pct + "%"; bar.classList.toggle("done", tgt && tMs >= tgt);
+    if (!tgt) $("todayMsg").textContent = "";
+    else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${settings.target}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
+    else {
+      let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${settings.target}h`;
+      if (open) { const end = now + (tgt - tMs); msg += ` · uscita prevista alle <b>${hm(end)}</b>`; }
+      $("todayMsg").innerHTML = msg;
+    }
+    $("todayList").innerHTML = punchRows(today, now) || "";
+
+    // week / month
+    const d = new Date(now);
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    let wMs = 0;
+    for (let i = 0; i < 7; i++) { const x = new Date(monday); x.setDate(monday.getDate() + i); wMs += dayMs(dayKey(x), now); }
+    $("wTot").textContent = dur(wMs);
+    const mKey = today.slice(0, 7);
+    const mDays = Object.keys(days).filter(k => k.startsWith(mKey) && days[k].p.length);
+    const mMs = mDays.reduce((s, k) => s + dayMs(k, now), 0);
+    $("mTot").textContent = dur(mMs);
+    const bal = mMs - mDays.length * tgt;
+    const balEl = $("mBal"); balEl.textContent = signed(bal);
+    balEl.style.color = bal >= 0 ? "var(--green)" : "var(--warn)";
+
+    renderHistory(now);
+  }
+
+  function punchRows(k, now) {
+    const arr = days[k]?.p || [];
+    return arr.map((p, idx) => `
+      <div class="row">
+        <div><div class="t">${hm(p.i)} → ${p.o != null ? hm(p.o) : '<span class="live">in corso</span>'}</div>
+             <div class="d">${dur(punchMs(p, now))}</div></div>
+        <button class="edit" data-k="${k}" data-i="${idx}">Modifica</button>
+      </div>`).join("");
+  }
+
+  function renderHistory(now) {
+    const keys = Object.keys(days).filter(k => days[k].p.length).sort().reverse();
+    const months = [...new Set([dayKey(new Date()).slice(0, 7), ...keys.map(k => k.slice(0, 7))])].sort().reverse();
+    if (!months.includes(selMonth)) selMonth = months[0];
+    $("months").innerHTML = months.map(m => `<button data-m="${m}" class="${m === selMonth ? "sel" : ""}">${esc(fmtMonth(m))}</button>`).join("");
+
+    const list = keys.filter(k => k.startsWith(selMonth));
+    if (!list.length) { $("history").innerHTML = `<div class="empty">Nessuna timbratura in questo mese.</div>`; return; }
+    const tgt = targetMs();
+    $("history").innerHTML = list.map(k => {
+      const ms = dayMs(k, now);
+      const cls = !tgt ? "" : ms >= tgt ? "over" : "under";
+      return `<div class="day ${openDays.has(k) ? "open" : ""}" data-day="${k}">
+        <div class="day-h" data-toggle="${k}"><span class="n">${esc(fmtDay(k))}</span><span class="tot ${cls}">${dur(ms)}</span></div>
+        <div class="day-b">${punchRows(k, now)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // ---------- sheets (edit / add / settings) ----------
+  const veil = $("veil"), sheet = $("sheet");
+  const closeSheet = () => veil.classList.remove("show");
+  veil.addEventListener("click", e => { if (e.target === veil) closeSheet(); });
+  const tsFrom = (dateStr, timeStr) => { const [y,m,d] = dateStr.split("-").map(Number); const [h,mi] = timeStr.split(":").map(Number); return new Date(y, m-1, d, h, mi).getTime(); };
+
+  function openPunchSheet(k, idx) {
+    const editing = k != null;
+    const p = editing ? days[k].p[idx] : null;
+    const dateVal = editing ? k : dayKey(new Date());
+    sheet.innerHTML = `
+      <h3>${editing ? "Modifica timbratura" : "Aggiungi timbratura"}</h3>
+      <div class="field"><label>Giorno</label><input type="date" id="fDate" value="${dateVal}"></div>
+      <div class="field"><label>Entrata</label><input type="time" id="fIn" value="${p ? hm(p.i) : "09:00"}"></div>
+      <div class="field"><label>Uscita ${editing && p.o == null ? "(vuoto = turno ancora in corso)" : ""}</label><input type="time" id="fOut" value="${p ? (p.o != null ? hm(p.o) : "") : "18:00"}"></div>
+      <div class="err" id="fErr"></div>
+      <div class="btns">
+        ${editing ? '<button class="btn d" id="fDel">Elimina</button>' : ""}
+        <button class="btn s" id="fCancel">Annulla</button>
+        <button class="btn p" id="fSave">Salva</button>
+      </div>`;
+    veil.classList.add("show");
+    $("fCancel").onclick = closeSheet;
+    if (editing) {
+      let armed = false;
+      $("fDel").onclick = async () => {
+        if (!armed) { armed = true; $("fDel").textContent = "Conferma"; return; }
+        days[k].p.splice(idx, 1);
+        closeSheet(); render(); toast("Timbratura eliminata");
+        try { await store.writeDay(k); } catch (e) { toast("Errore nel salvataggio"); }
+      };
+    }
+    $("fSave").onclick = async () => {
+      const date = $("fDate").value, tin = $("fIn").value, tout = $("fOut").value;
+      if (!date || !tin) { $("fErr").textContent = "Inserisci giorno e ora di entrata."; return; }
+      const i = tsFrom(date, tin);
+      let o = null;
+      if (tout) { o = tsFrom(date, tout); if (o <= i) o += 86400000; } // turno a cavallo della mezzanotte
+      else {
+        const other = findOpen();
+        if (other && !(editing && other.k === k && other.idx === idx)) { $("fErr").textContent = "C'è già un turno in corso: inserisci l'ora di uscita."; return; }
+        if (i > Date.now()) { $("fErr").textContent = "L'entrata non può essere nel futuro."; return; }
+      }
+      const touched = new Set([date]);
+      if (editing) { days[k].p.splice(idx, 1); touched.add(k); }
+      days[date] = days[date] || { p: [] };
+      days[date].p.push({ i, o });
+      sortPunches(days[date].p);
+      openDays.add(date); selMonth = date.slice(0, 7);
+      closeSheet(); render(); toast("Salvato");
+      try { for (const t of touched) await store.writeDay(t); } catch (e) { toast("Errore nel salvataggio"); }
+    };
+  }
+
+  function openSettings() {
+    sheet.innerHTML = `
+      <h3>Ore giornaliere</h3>
+      <div class="field"><label>Obiettivo di ore lavorative al giorno</label>
+        <input type="number" id="sTarget" inputmode="decimal" min="0" max="24" step="0.25" value="${settings.target}"></div>
+      <div class="sub">Usato per la barra di avanzamento, lo straordinario e il saldo del mese.</div>
+      <div class="btns"><button class="btn s" id="sCancel">Annulla</button><button class="btn p" id="sSave">Salva</button></div>`;
+    veil.classList.add("show");
+    $("sCancel").onclick = closeSheet;
+    $("sSave").onclick = async () => {
+      const v = parseFloat(String($("sTarget").value).replace(",", "."));
+      if (isNaN(v) || v < 0 || v > 24) return;
+      if (v === Number(settings.target)) { closeSheet(); return; }
+      settings = Object.assign({}, settings, { target: v });
+      closeSheet(); render(); toast("Impostazioni salvate");
+      try { await store.writeSettings(); } catch (e) { toast("Errore nel salvataggio"); }
+    };
+  }
+
+  // ---------- export / backup ----------
+  // Formato compatibile con Controllo_ore.xlsx: data;entrata;uscita (una riga per turno)
+  function buildMonthText(month) {
+    const lines = [];
+    Object.keys(days).filter(k => k.startsWith(month) && days[k].p.length).sort().forEach(k => {
+      days[k].p.forEach(p => lines.push(`${k};${hm(p.i)};${p.o != null ? hm(p.o) : ""}`));
+    });
+    return lines.join("\n");
+  }
+  async function shareFile(filename, text, mime) {
+    const file = new File([text], filename, { type: mime });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    try {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a"); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) { toast("Esportazione non riuscita"); }
+  }
+  function openExport() {
+    const text = buildMonthText(selMonth);
+    const n = text ? text.split("\n").length : 0;
+    sheet.innerHTML = `
+      <h3>Esporta ${esc(fmtMonth(selMonth))}</h3>
+      <div class="sub" style="margin-bottom:14px">${n} timbrature. Il testo è nel formato del file Excel <b>Controllo_ore.xlsx</b>: incollalo nella cella A2 del foglio "Timbrature".</div>
+      <div class="btns" style="flex-direction:column">
+        <button class="btn p" id="xCopy">Copia il testo</button>
+        <button class="btn s" id="xShare">Salva / invia come file .txt</button>
+        <button class="btn s" id="xClose">Chiudi</button>
+      </div>`;
+    veil.classList.add("show");
+    $("xClose").onclick = closeSheet;
+    $("xCopy").onclick = async () => {
+      if (!text) { toast("Nessuna timbratura nel mese"); return; }
+      try { await navigator.clipboard.writeText(text); toast("Testo copiato"); }
+      catch (e) { toast("Copia non riuscita, usa il file"); }
+    };
+    $("xShare").onclick = () => text ? shareFile(`timbrature-${selMonth}.txt`, text, "text/plain") : toast("Nessuna timbratura nel mese");
+  }
+  function openBackup() {
+    sheet.innerHTML = `
+      <h3>Backup dei dati</h3>
+      <div class="sub" style="margin-bottom:14px">I dati sono salvati solo su questo iPhone. Fai ogni tanto un backup e salvalo in File (iCloud Drive): se cambi telefono o cancelli i dati di Safari potrai ripristinarlo.</div>
+      <div class="btns" style="flex-direction:column">
+        <button class="btn p" id="bSave">Salva backup</button>
+        <label class="btn s" style="text-align:center">Ripristina da backup<input type="file" id="bFile" accept=".json,application/json" hidden></label>
+        <button class="btn s" id="bClose">Chiudi</button>
+      </div>
+      <div class="err" id="bErr"></div>`;
+    veil.classList.add("show");
+    $("bClose").onclick = closeSheet;
+    $("bSave").onclick = () => shareFile(`timbrature-backup-${dayKey(new Date())}.json`, JSON.stringify({ app: "timbrature", v: 1, days, settings }), "application/json");
+    let armed = null;
+    $("bFile").onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const j = JSON.parse(await f.text());
+        if (j.app !== "timbrature" || typeof j.days !== "object") throw 0;
+        armed = j;
+        $("bErr").innerHTML = `Backup con ${Object.keys(j.days).length} giorni. <button class="edit" id="bOk">Sostituisci i dati attuali</button>`;
+        $("bOk").onclick = () => {
+          days = armed.days; settings = Object.assign({ target: 8 }, armed.settings || {});
+          store.save(); closeSheet(); render(); toast("Backup ripristinato");
+        };
+      } catch (err) { $("bErr").textContent = "File di backup non valido."; }
+    };
+  }
+
+  // ---------- events ----------
+  $("punchBtn").onclick = punch;
+  $("addBtn").onclick = () => openPunchSheet(null, null);
+  $("settingsBtn").onclick = openSettings;
+  $("exportBtn").onclick = openExport;
+  $("backupBtn").onclick = openBackup;
+  document.addEventListener("click", e => {
+    const ed = e.target.closest(".edit");
+    if (ed) { openPunchSheet(ed.dataset.k, Number(ed.dataset.i)); return; }
+    const tg = e.target.closest("[data-toggle]");
+    if (tg) { const k = tg.dataset.toggle; openDays.has(k) ? openDays.delete(k) : openDays.add(k); render(); return; }
+    const mb = e.target.closest("[data-m]");
+    if (mb) { selMonth = mb.dataset.m; render(); }
+  });
+
+  // ---------- clock ----------
+  function tick() {
+    const n = new Date();
+    $("clock").textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+    $("today").textContent = n.toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long" });
+  }
+  tick(); render();
+  setInterval(() => { tick(); if (!veil.classList.contains("show")) render(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { tick(); render(); } });
+
+  initStore();
+})();
+</script>
+</body>
+</html>
