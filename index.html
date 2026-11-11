@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Timbrature">
 <meta name="theme-color" content="#0f1115">
@@ -20,6 +20,7 @@
     --green:#1f7c49;--warn:#94600a;--red:#c53a3a}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   [hidden]{display:none!important}
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
   html,body{margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
@@ -170,6 +171,11 @@
 
   <div class="card" id="payCard" hidden>
     <div class="pay"><div><div class="label">Stima lorda del mese</div><div class="sub" id="payDet"></div></div><div class="v" id="payTot"></div></div>
+  </div>
+
+  <div class="card" id="bkCard" hidden style="border-color:var(--warn)">
+    <div><b>💾 <span id="bkTitle"></span></b><div class="sub" id="bkTxt"></div></div>
+    <div class="btns" style="margin-top:12px"><button class="btn s" id="bkLater">Più tardi</button><button class="btn p" id="bkNow">Fai backup ora</button></div>
   </div>
 
   <div class="note" id="note" hidden></div>
@@ -509,6 +515,7 @@
       $("payDet").textContent = parts.join(" · ");
     } else pc.hidden = true;
 
+    renderBackupReminder(now);
     renderHistory(now);
   }
 
@@ -870,15 +877,16 @@
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
-        return;
+        return true;
       }
-    } catch (e) { if (e && e.name === "AbortError") return; }
+    } catch (e) { if (e && e.name === "AbortError") return false; }
     try {
       const url = URL.createObjectURL(file);
       const a = document.createElement("a"); a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-    } catch (e) { toast("Esportazione non riuscita"); }
+      return true;
+    } catch (e) { toast("Esportazione non riuscita"); return false; }
   }
   function openExport() {
     const text = buildMonthText(selMonth);
@@ -909,7 +917,7 @@
   function openBackup() {
     sheet.innerHTML = `
       <h3>Backup dei dati</h3>
-      <div class="sub" style="margin-bottom:14px">I dati sono salvati solo su questo iPhone. Fai ogni tanto un backup e salvalo in File (iCloud Drive): se cambi telefono o cancelli i dati di Safari potrai ripristinarlo.</div>
+      <div class="sub" style="margin-bottom:14px">I dati sono salvati solo su questo iPhone. Fai ogni tanto un backup e salvalo in File → iCloud Drive: se il telefono si rompe o lo cambi, potrai ripristinarlo.<br><b>Ultimo backup:</b> ${lastBackup() ? new Date(lastBackup()).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" }) : "mai"}.</div>
       <div class="btns" style="flex-direction:column">
         <button class="btn p" id="bSave">Salva backup</button>
         <label class="btn s" style="text-align:center">Ripristina da backup<input type="file" id="bFile" accept=".json,application/json" hidden></label>
@@ -918,7 +926,7 @@
       <div class="err" id="bErr"></div>`;
     veil.classList.add("show");
     $("bClose").onclick = closeSheet;
-    $("bSave").onclick = () => shareFile(`timbrature-backup-${dayKey(new Date())}.json`, JSON.stringify({ app: "timbrature", v: 1, days, settings }), "application/json");
+    $("bSave").onclick = doBackup;
     let armed = null;
     $("bFile").onchange = async e => {
       const f = e.target.files[0]; if (!f) return;
@@ -944,6 +952,30 @@
         };
       } catch (err) { $("bErr").textContent = "File di backup non valido."; }
     };
+  }
+
+  // ---------- promemoria backup ----------
+  const BK_KEY = "timbrature.backup", BK_SNOOZE = "timbrature.backupSnooze";
+  const lsGet = k => { try { return +localStorage.getItem(k) || 0; } catch (e) { return 0; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) {} };
+  const lastBackup = () => lsGet(BK_KEY);
+  async function doBackup() {
+    const ok = await shareFile(`timbrature-backup-${dayKey(new Date())}.json`, JSON.stringify({ app: "timbrature", v: 1, days, settings }), "application/json");
+    if (ok) { lsSet(BK_KEY, Date.now()); toast("Backup creato"); render(); }
+  }
+  function renderBackupReminder(now) {
+    const card = $("bkCard"), keys = Object.keys(days).filter(k => days[k].p.length || days[k].t).sort();
+    const DAY = 86400000, last = lastBackup(), snooze = lsGet(BK_SNOOZE);
+    // promemoria: nessun backup e dati da almeno 7 giorni, oppure ultimo backup più vecchio di 30 giorni
+    const firstData = keys.length ? keyToDate(keys[0]).getTime() : now;
+    const due = keys.length >= 3 && (last ? now - last > 30 * DAY : now - firstData > 7 * DAY);
+    if (!due || now < snooze) { card.hidden = true; return; }
+    card.hidden = false;
+    $("bkTitle").textContent = last ? "È ora di fare un backup" : "Fai il primo backup";
+    $("bkTxt").textContent = last ? `L'ultimo è del ${new Date(last).toLocaleDateString("it-IT", { day: "numeric", month: "long" })}. Salvalo in File → iCloud Drive: se perdi o cambi il telefono, le timbrature si recuperano.`
+      : "Le timbrature sono salvate solo su questo iPhone. Salva una copia in File → iCloud Drive: se perdi o cambi il telefono, le recuperi.";
+    $("bkNow").onclick = doBackup;
+    $("bkLater").onclick = () => { lsSet(BK_SNOOZE, Date.now() + 7 * DAY); render(); };
   }
 
   // ---------- info ----------
@@ -1001,7 +1033,8 @@
       <ul>
         <li>Le timbrature restano <b>solo su questo iPhone</b>: nessuno le vede, nemmeno chi ha fatto l'app.</li>
         <li>Usa sempre l'app dall'<b>icona sulla schermata Home</b>, non da Safari, e non cancellare l'icona: perderesti i dati.</li>
-        <li>Fai ogni tanto un <b>Backup</b> e salvalo in File/iCloud: se cambi telefono potrai ripristinarlo.</li>
+        <li>Fai ogni tanto un <b>Backup</b> e salvalo in File → iCloud Drive: se cambi telefono potrai ripristinarlo. L'app te lo ricorda una volta al mese.</li>
+        <li><b>Funziona anche senza internet</b> (es. in cantiere senza campo): le timbrature si salvano sul telefono; gli aggiornamenti arrivano quando torna la connessione. Serve aver aperto l'app almeno una volta con internet.</li>
       </ul>
       <h4>🔄 Aggiornamenti</h4>
       <p>Quando esce una versione nuova compare in alto un avviso con il pulsante <b>Aggiorna</b>. Puoi anche controllare a mano. Versione attuale: <b>${APP_VERSION}</b>.</p>
@@ -1014,10 +1047,13 @@
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "3.1";
+  const APP_VERSION = "3.2";
   $("ver").textContent = APP_VERSION;
   // novità di ogni versione, mostrate una volta dopo l'aggiornamento
   const CHANGELOG = [
+    ["3.2", ["Funziona anche senza internet: in cantiere senza campo l'app si apre e timbra lo stesso.",
+             "Promemoria di backup una volta al mese, con salvataggio in iCloud in un tocco.",
+             "Lo zoom con due dita è disattivato."]],
     ["3.1", ["Dopo ogni aggiornamento compare questa finestra con le novità.", "\"Controlla aggiornamenti\" anche in fondo alla pagina, accanto al numero di versione."]],
     ["3.0", ["Ferie, malattia, permessi e festivi (+ Aggiungi → Ferie / assenza), anche per un periodo intero.",
              "Ore diverse per ogni giorno della settimana (Impostazioni). Controlla sabato e domenica: 0 = riposo.",
@@ -1104,6 +1140,11 @@
 
   initStore();
   checkWhatsNew();
+  // funzionamento offline
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { try { navigator.serviceWorker.register("sw.js").catch(() => {}); } catch (e) {} }
+  // niente zoom (Safari su iPhone ignora user-scalable=no, quindi si bloccano anche i gesti)
+  ["gesturestart", "gesturechange", "gestureend"].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+  document.addEventListener("touchmove", e => { if (e.scale !== undefined && e.scale !== 1) e.preventDefault(); }, { passive: false });
 })();
 </script>
 </body>
