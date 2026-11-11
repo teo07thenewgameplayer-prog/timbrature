@@ -133,7 +133,7 @@
   </div>
 </div>
 
-<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione 1.4 · 11 novembre</div>
+<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione 1.5 · 11 novembre</div>
 <div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -523,7 +523,7 @@
   $("exportBtn").onclick = openExport;
   $("backupBtn").onclick = openBackup;
   document.addEventListener("click", e => {
-    const ed = e.target.closest(".edit");
+    const ed = e.target.closest(".edit[data-k]");
     if (ed) { openPunchSheet(ed.dataset.k, Number(ed.dataset.i)); return; }
     const tg = e.target.closest("[data-toggle]");
     if (tg) { const k = tg.dataset.toggle; openDays.has(k) ? openDays.delete(k) : openDays.add(k); render(); return; }
