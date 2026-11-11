@@ -188,7 +188,7 @@
   </div>
 </div>
 
-<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione <span id="ver"></span> · 11 novembre</div>
+<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione <span id="ver"></span> · <button class="link" id="verChk" style="font-size:12px;font-weight:600;padding:0">Controlla aggiornamenti</button></div>
 <div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -1014,8 +1014,41 @@
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "3.0";
+  const APP_VERSION = "3.1";
   $("ver").textContent = APP_VERSION;
+  // novità di ogni versione, mostrate una volta dopo l'aggiornamento
+  const CHANGELOG = [
+    ["3.1", ["Dopo ogni aggiornamento compare questa finestra con le novità.", "\"Controlla aggiornamenti\" anche in fondo alla pagina, accanto al numero di versione."]],
+    ["3.0", ["Ferie, malattia, permessi e festivi (+ Aggiungi → Ferie / assenza), anche per un periodo intero.",
+             "Ore diverse per ogni giorno della settimana (Impostazioni). Controlla sabato e domenica: 0 = riposo.",
+             "Festività nazionali riconosciute: chi lavora quel giorno fa straordinario.",
+             "Arrotondamento delle timbrature come il badge aziendale (5, 10, 15 o 30 minuti).",
+             "Extra notturno (22–6) e domenica/festivi nella stima della paga.",
+             "Esporta → Scarica Excel: file .xlsx del mese già calcolato, senza copia e incolla.",
+             "Note sul giorno, grafico del mese e avviso \"Sei ancora al lavoro?\"."]],
+    ["2.0", ["Pulsante \"Controlla aggiornamenti\" nelle Info."]],
+    ["1.9", ["Correzioni: cambio dell'ora, uscita dimenticata, backup; colori più leggibili."]]
+  ];
+  function showWhatsNew(fromV) {
+    const items = CHANGELOG.filter(([v]) => !fromV || newer(v, fromV));
+    if (!items.length) return;
+    sheet.innerHTML = `<div class="info">
+      <h3>🎉 App aggiornata alla versione ${APP_VERSION}</h3>
+      <p>Le tue timbrature e le impostazioni sono al sicuro. Ecco cosa c'è di nuovo:</p>
+      ${items.map(([v, list]) => `<h4>Versione ${v}</h4><ul>${list.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`).join("")}
+      <p style="margin-top:12px">Trovi tutte le spiegazioni in <b>Info e istruzioni</b>.</p>
+      <div class="btns"><button class="btn p" id="wnOk">Ho capito</button></div></div>`;
+    veil.classList.add("show"); sheet.scrollTop = 0;
+    $("wnOk").onclick = closeSheet;
+  }
+  function checkWhatsNew() {
+    let seen = null; try { seen = localStorage.getItem("timbrature.ver"); } catch (e) { return; }
+    try { localStorage.setItem("timbrature.ver", APP_VERSION); } catch (e) {}
+    if (seen === APP_VERSION) return;
+    if (seen) { showWhatsNew(seen); return; }
+    // prima volta con questa funzione: se c'erano già dati è un aggiornamento (da una versione precedente alla 3.1)
+    if (Object.keys(days).length) showWhatsNew("2.0");
+  }
   const newer = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
   let lastCheck = 0;
@@ -1044,6 +1077,7 @@
   $("exportBtn").onclick = openExport;
   $("backupBtn").onclick = openBackup;
   $("infoBtn").onclick = openInfo;
+  $("verChk").onclick = () => checkUpdate(true);
   document.addEventListener("click", e => {
     const ab = e.target.closest("[data-abs]");
     if (ab) { openAbsenceSheet(ab.dataset.abs); return; }
@@ -1069,6 +1103,7 @@
   checkUpdate();
 
   initStore();
+  checkWhatsNew();
 })();
 </script>
 </body>
