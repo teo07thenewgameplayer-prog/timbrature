@@ -17,6 +17,7 @@
   }
   body.light{--bg:#f3f4f7;--card:#ffffff;--card2:#eceef3;--line:#e0e3ea;--text:#15171c;--muted:#6b7385}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
   html,body{margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px)
@@ -110,6 +111,10 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="card" id="updBar" hidden style="position:sticky;top:calc(env(safe-area-inset-top) + 6px);z-index:5;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:space-between;gap:12px;border-color:var(--accent)">
+    <div><b>Nuova versione disponibile</b><div class="sub" id="updTxt"></div></div>
+    <button class="btn p" id="updBtn" style="flex:none;padding:12px 18px">Aggiorna</button>
+  </div>
   <header>
     <div>
       <div class="date" id="today"></div>
@@ -156,7 +161,7 @@
   </div>
 </div>
 
-<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione 1.7 · 11 novembre</div>
+<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione <span id="ver"></span> · 11 novembre</div>
 <div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -649,6 +654,28 @@
     $("iClose").onclick = closeSheet;
   }
 
+  // ---------- aggiornamenti ----------
+  const APP_VERSION = "1.8";
+  $("ver").textContent = APP_VERSION;
+  const newer = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0); } return false; };
+  let lastCheck = 0;
+  async function checkUpdate() {
+    if (!/^https?:/.test(location.protocol) || Date.now() - lastCheck < 60000) return;
+    lastCheck = Date.now();
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j && typeof j.version === "string" && newer(j.version, APP_VERSION)) {
+        $("updTxt").textContent = `Versione ${j.version}` + (j.note ? ` · ${j.note}` : "");
+        $("updBar").hidden = false;
+        $("updBtn").onclick = () => { location.replace(location.pathname + "?v=" + encodeURIComponent(j.version)); };
+      }
+    } catch (e) {}
+  }
+  setInterval(checkUpdate, 30 * 60000);
+
   // ---------- events ----------
   $("punchBtn").onclick = punch;
   $("addBtn").onclick = () => openPunchSheet(null, null);
@@ -673,7 +700,8 @@
   }
   tick(); render();
   setInterval(() => { tick(); if (!veil.classList.contains("show")) render(); }, 15000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { tick(); render(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { tick(); render(); checkUpdate(); } });
+  checkUpdate();
 
   initStore();
 })();
