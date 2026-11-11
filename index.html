@@ -176,6 +176,7 @@
       catch (e) { storageOk = false; }
     },
     save() {
+      for (const k of Object.keys(days)) if (!days[k].p.length) delete days[k];
       try { localStorage.setItem(LS_KEY, JSON.stringify({ days, settings, saved: Date.now() })); }
       catch (e) { storageOk = false; showNote("Impossibile salvare i dati: disattiva la navigazione privata."); }
     },
@@ -197,7 +198,9 @@
   function hideNote() { $("note").hidden = true; }
 
   // ---------- calculations ----------
-  const punchMs = (p, now) => Math.max(0, (p.o ?? now) - p.i);
+  // conta minuti interi (08:00:50 → 08:00), così i totali coincidono con l'Excel che usa HH:MM
+  const toMin = t => Math.floor(t / 60000) * 60000;
+  const punchMs = (p, now) => Math.max(0, toMin(p.o ?? now) - toMin(p.i));
   const dayMs = (k, now) => (days[k]?.p || []).reduce((s, p) => s + punchMs(p, now), 0);
   const targetMs = () => (Number(settings.target) || 0) * 3600000;
   const sortPunches = arr => arr.sort((a, b) => a.i - b.i);
@@ -279,7 +282,11 @@
     $("todayTot").textContent = dur(tMs);
     const pct = tgt ? Math.min(100, tMs / tgt * 100) : 0;
     const bar = $("todayBar"); bar.style.width = pct + "%"; bar.classList.toggle("done", tgt && tMs >= tgt);
-    if (!tgt) $("todayMsg").textContent = "";
+    if (open && open.k !== today) {
+      const p = days[open.k].p[open.idx];
+      $("todayMsg").innerHTML = `Turno iniziato ${esc(fmtDay(open.k))}: <b>${dur(punchMs(p, now))}</b> (contato su quel giorno)`;
+    }
+    else if (!tgt) $("todayMsg").textContent = "";
     else if (tMs >= tgt) $("todayMsg").innerHTML = `Obiettivo di ${settings.target}h raggiunto · <b>${signed(tMs - tgt)}</b> di straordinario`;
     else {
       let msg = `Mancano <b>${dur(tgt - tMs)}</b> alle ${settings.target}h`;
@@ -411,14 +418,15 @@
     sheet.innerHTML = `
       <h3>Ore giornaliere</h3>
       <div class="field"><label>Obiettivo di ore lavorative al giorno</label>
-        <input type="number" id="sTarget" inputmode="decimal" min="0" max="24" step="0.25" value="${settings.target}"></div>
+        <input type="text" id="sTarget" inputmode="decimal" value="${String(settings.target).replace(".", ",")}"></div>
+      <div class="err" id="sErr"></div>
       <div class="sub">Usato per la barra di avanzamento, lo straordinario e il saldo del mese.</div>
       <div class="btns"><button class="btn s" id="sCancel">Annulla</button><button class="btn p" id="sSave">Salva</button></div>`;
     veil.classList.add("show");
     $("sCancel").onclick = closeSheet;
     $("sSave").onclick = async () => {
       const v = parseFloat(String($("sTarget").value).replace(",", "."));
-      if (isNaN(v) || v < 0 || v > 24) return;
+      if (isNaN(v) || v < 0 || v > 24) { $("sErr").textContent = "Scrivi un numero tra 0 e 24 (es. 8 o 7,5)."; return; }
       if (v === Number(settings.target)) { closeSheet(); return; }
       settings = Object.assign({}, settings, { target: v });
       closeSheet(); render(); toast("Impostazioni salvate");
