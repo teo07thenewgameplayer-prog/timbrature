@@ -246,11 +246,12 @@
       const tp = days[today]?.p || [];
       const last = tp.length ? tp[tp.length - 1] : null;
       btn.className = "punch-btn";
-      if (ready && last && last.o != null && last.o <= now) {
+      if (ready && last && last.o != null && last.o <= now && now - last.o < 3 * 3600000) {
         $("statusTxt").innerHTML = `In pausa dalle <b style="color:var(--text)">${hm(last.o)}</b> · ${dur(now - last.o)}`;
         btn.innerHTML = `Timbra rientro<small>Riprendi il lavoro dopo la pausa</small>`;
       } else {
-        $("statusTxt").textContent = ready ? "Fuori servizio" : "Caricamento…";
+        $("statusTxt").innerHTML = !ready ? "Caricamento…" : (last && last.o != null
+          ? `Fuori servizio · uscito alle <b style="color:var(--text)">${hm(last.o)}</b>` : "Fuori servizio");
         btn.innerHTML = `Timbra entrata<small>Inizia il turno ora</small>`;
       }
     }
