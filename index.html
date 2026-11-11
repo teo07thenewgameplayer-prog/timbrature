@@ -49,6 +49,7 @@
   .stat .v{font-size:19px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
   .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
   .row:first-child{border-top:0}
+  .row.pause{padding:6px 0;border-top:1px dashed var(--line)}
   .row .t{font-size:16px}
   .row .d{color:var(--muted);font-size:14px}
   .live{color:var(--green)}
@@ -217,7 +218,7 @@
       days[k] = days[k] || { p: [] };
       days[k].p.push({ i: now, o: null });
       sortPunches(days[k].p);
-      toast(`Entrata timbrata alle ${hm(now)}`);
+      toast(`${days[k].p.length > 1 ? "Rientro" : "Entrata"} timbrato alle ${hm(now)}`);
       openDays.add(k);
     }
     if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
@@ -242,9 +243,16 @@
       btn.innerHTML = `Timbra uscita<small>Turno in corso da ${dur(now - p.i)}</small>`;
     } else {
       $("dot").classList.remove("on");
-      $("statusTxt").textContent = ready ? "Fuori servizio" : "Caricamento…";
+      const tp = days[today]?.p || [];
+      const last = tp.length ? tp[tp.length - 1] : null;
       btn.className = "punch-btn";
-      btn.innerHTML = `Timbra entrata<small>Inizia il turno ora</small>`;
+      if (ready && last && last.o != null && last.o <= now) {
+        $("statusTxt").innerHTML = `In pausa dalle <b style="color:var(--text)">${hm(last.o)}</b> · ${dur(now - last.o)}`;
+        btn.innerHTML = `Timbra rientro<small>Riprendi il lavoro dopo la pausa</small>`;
+      } else {
+        $("statusTxt").textContent = ready ? "Fuori servizio" : "Caricamento…";
+        btn.innerHTML = `Timbra entrata<small>Inizia il turno ora</small>`;
+      }
     }
 
     // today
@@ -280,12 +288,17 @@
 
   function punchRows(k, now) {
     const arr = days[k]?.p || [];
-    return arr.map((p, idx) => `
+    return arr.map((p, idx) => {
+      const prev = idx > 0 ? arr[idx - 1] : null;
+      const pause = prev && prev.o != null && p.i > prev.o
+        ? `<div class="row pause"><div class="d">☕ Pausa ${hm(prev.o)} → ${hm(p.i)}</div><div class="d">${dur(p.i - prev.o)}</div></div>` : "";
+      return pause + `
       <div class="row">
         <div><div class="t">${hm(p.i)} → ${p.o != null ? hm(p.o) : '<span class="live">in corso</span>'}</div>
              <div class="d">${dur(punchMs(p, now))}</div></div>
         <button class="edit" data-k="${k}" data-i="${idx}">Modifica</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
 
   function renderHistory(now) {
