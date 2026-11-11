@@ -88,6 +88,10 @@
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .pay{display:flex;justify-content:space-between;align-items:center}
   .pay .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .info h4{margin:18px 0 6px;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0}
+  .info p,.info li{color:var(--muted);font-size:15px;line-height:1.45;margin:0 0 6px}
+  .info ul{padding-left:18px;margin:0}
+  .info b{color:var(--text)}
   .mtot{color:var(--muted);font-size:14px;margin:0 4px 10px}
   .field{margin-bottom:12px}
   .field label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
@@ -147,11 +151,12 @@
   <div class="tools">
     <button class="tool" id="exportBtn">Esporta mese</button>
     <button class="tool" id="settingsBtn">Impostazioni</button>
-    <button class="tool" id="backupBtn" style="grid-column:1/-1">Backup / ripristino</button>
+    <button class="tool" id="backupBtn">Backup / ripristino</button>
+    <button class="tool" id="infoBtn">Info e istruzioni</button>
   </div>
 </div>
 
-<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione 1.6 · 11 novembre</div>
+<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:22px">Versione 1.7 · 11 novembre</div>
 <div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -594,12 +599,63 @@
     };
   }
 
+  // ---------- info ----------
+  function openInfo() {
+    const t = Number(settings.target) || 0;
+    sheet.innerHTML = `<div class="info">
+      <h3>Come funziona</h3>
+      <h4>⏱️ Timbrare</h4>
+      <p>Tocca il pulsante grande: <b>Timbra entrata</b> quando inizi, <b>Timbra uscita</b> quando finisci. L'ora viene presa dall'orologio del telefono.</p>
+      <h4>☕ Pausa pranzo</h4>
+      <ul>
+        <li>Timbra l'uscita quando vai in pausa e il <b>rientro</b> quando torni: le ore si sommano sulla stessa giornata e la pausa non viene contata.</li>
+        <li>Fino a <b>3 ore</b> dopo un'uscita l'app scrive "In pausa" e il pulsante diventa "Timbra rientro".</li>
+        <li>Dopo 3 ore considera che hai <b>finito la giornata</b> e scrive "Fuori servizio". Se rientri comunque, le ore si sommano lo stesso.</li>
+      </ul>
+      <h4>📅 Giornate e mezzanotte</h4>
+      <ul>
+        <li>A <b>mezzanotte</b> "Oggi" riparte da zero; i giorni passati restano nello Storico.</li>
+        <li>Un <b>turno di notte</b> (es. 22:00 → 06:00) viene contato tutto sul giorno in cui sei entrato.</li>
+      </ul>
+      <h4>🧮 Come conta le ore</h4>
+      <ul>
+        <li>Conta i <b>minuti interi</b> (08:00:50 vale 08:00), come il file Excel di controllo.</li>
+        <li><b>Obiettivo giornaliero</b>: ${String(t).replace(".", ",")} ore (modificabile in Impostazioni). Oltre l'obiettivo le ore sono <b>straordinario</b>.</li>
+        <li><b>Saldo mese</b>: per i giorni passati, ore lavorate meno obiettivo; per oggi conta solo l'eventuale straordinario (le ore mancanti si contano a fine giornata). I giorni senza timbrature (es. weekend) non contano.</li>
+        <li><b>Settimana</b>: da lunedì a domenica.</li>
+      </ul>
+      <h4>🛡️ Controlli automatici</h4>
+      <ul>
+        <li><b>Doppio tocco</b>: per 5 secondi dopo una timbratura il pulsante è bloccato.</li>
+        <li><b>Uscita dimenticata</b>: se un turno resta aperto più di <b>14 ore</b>, l'app te lo segnala e chiede l'ora di uscita.</li>
+        <li>Non accetta turni più lunghi di <b>16 ore</b>, uscite nel futuro, turni sovrapposti o due turni aperti insieme.</li>
+      </ul>
+      <h4>✏️ Correggere</h4>
+      <p>Nello <b>Storico</b> tocca un giorno e poi <b>Modifica</b> per cambiare o eliminare una timbratura. Con <b>+ Aggiungi</b> inserisci a mano un turno dimenticato.</p>
+      <h4>💶 Stima paga</h4>
+      <p>Se in Impostazioni metti la paga oraria, l'app stima il <b>lordo</b> del mese: ore ordinarie × paga + straordinari × paga × maggiorazione. È indicativa: la busta paga include tasse, contributi e altre voci.</p>
+      <h4>📤 Controllo con la busta paga</h4>
+      <p><b>Esporta mese</b> → <b>Copia il testo</b>, poi incollalo nella cella A2 del foglio "Timbrature" del file <b>Controllo_ore.xlsx</b>. Nel foglio "Mese" scegli anno e mese.</p>
+      <h4>💾 Dove sono i dati</h4>
+      <ul>
+        <li>Le timbrature restano <b>solo su questo iPhone</b>: nessuno le vede, nemmeno chi ha fatto l'app.</li>
+        <li>Usa sempre l'app dall'<b>icona sulla schermata Home</b>, non da Safari.</li>
+        <li>Fai ogni tanto un <b>Backup</b> e salvalo in File/iCloud: se cambi telefono potrai ripristinarlo.</li>
+      </ul>
+      <div class="btns"><button class="btn p" id="iClose">Ho capito</button></div>
+    </div>`;
+    veil.classList.add("show");
+    sheet.scrollTop = 0;
+    $("iClose").onclick = closeSheet;
+  }
+
   // ---------- events ----------
   $("punchBtn").onclick = punch;
   $("addBtn").onclick = () => openPunchSheet(null, null);
   $("settingsBtn").onclick = openSettings;
   $("exportBtn").onclick = openExport;
   $("backupBtn").onclick = openBackup;
+  $("infoBtn").onclick = openInfo;
   document.addEventListener("click", e => {
     const ed = e.target.closest(".edit[data-k]");
     if (ed) { openPunchSheet(ed.dataset.k, Number(ed.dataset.i)); return; }
