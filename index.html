@@ -130,6 +130,8 @@
   .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(30px);
     background:var(--text);color:var(--bg);padding:11px 18px;box-shadow:0 4px 16px rgba(0,0,0,.25);border-radius:14px;font-size:15px;font-weight:600;opacity:0;transition:.25s;z-index:20;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.top{bottom:auto;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%) translateY(-30px)}
+  .toast.top.show{transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -216,11 +218,11 @@
   const fmtDay = k => keyToDate(k).toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long" });
   const fmtMonth = k => keyToDate(k + "-01").toLocaleDateString("it-IT", { month:"long", year:"numeric" });
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
-  const toast = msg => { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); };
+  const toast = msg => { const t = $("toast"); t.textContent = msg; t.classList.toggle("top", !!document.querySelector(".veil.show")); setTimeout(() => t.classList.toggle("top", !!document.querySelector(".veil.show")), 400); t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); };
 
   // ---------- state ----------
   let days = {};             // "YYYY-MM-DD" -> { p: [{i: ms, o: ms|null}] }
-  const DEFAULTS = { target: 8, week: null, round: 0, name: "Timbrature", color: "#5b8cff", theme: "dark", pay: 0, ot: 25, otN: 0, otF: 0 };
+  const DEFAULTS = { target: 8, week: null, round: 0, name: "Timbrature", color: "#5b8cff", theme: "dark", pay: 0, ot: 25, otN: 0, otF: 0, askCar: true, kmRate: 0, lastKm: 0 };
   const WD = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
   const ABS = { ferie: "Ferie", malattia: "Malattia", permesso: "Permesso", festivo: "Festivo" };
   const ABS_ICON = { ferie: "🏖️", malattia: "🤒", permesso: "📄", festivo: "🎉" };
@@ -278,7 +280,7 @@
   const punchMs = (p, now) => { const e = eff(p, now); return Math.max(0, e.o - e.i); };
   const dayMs = (k, now) => (days[k]?.p || []).reduce((s, p) => s + punchMs(p, now), 0);
   const absMs = k => days[k]?.t ? (Number(days[k].h) || 0) * 3600000 : 0;
-  const hasData = k => !!days[k] && (days[k].p.length > 0 || !!days[k].t || !!days[k].n);
+  const hasData = k => !!days[k] && (days[k].p.length > 0 || !!days[k].t || !!days[k].n || days[k].car === true);
   function cleanDay(dk, v) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !v || typeof v !== "object") return null;
     const p = (Array.isArray(v.p) ? v.p : []).filter(x => x && Number.isFinite(x.i) && (x.o == null || Number.isFinite(x.o)))
@@ -286,7 +288,8 @@
     const d = { p };
     if (ABS[v.t]) { d.t = v.t; d.h = Math.min(24, Math.max(0, Number(v.h) || 0)); }
     if (typeof v.n === "string" && v.n.trim()) d.n = v.n.trim().slice(0, 300);
-    return (d.p.length || d.t || d.n) ? d : null;
+    if (typeof v.car === "boolean") { d.car = v.car; if (v.car && Number.isFinite(+v.km) && +v.km > 0) d.km = Math.min(2000, Math.round(+v.km * 10) / 10); }
+    return (d.p.length || d.t || d.n || d.car === true) ? d : null;
   }
   // festività nazionali italiane
   function easter(y) {
@@ -351,6 +354,7 @@
       k = open.k;
       days[k].p[open.idx].o = now;
       toast(`Uscita timbrata alle ${hm(now)}`);
+      askCarAfterExit(k);
     } else {
       k = dayKey(new Date(now));
       days[k] = days[k] || { p: [] };
@@ -388,7 +392,7 @@
     box.hidden = false;
     $("stillTxt").textContent = `Di solito esci verso le ${hm(at)}. Se hai dimenticato di timbrare, registra l'uscita a quell'ora.`;
     $("stillNo").textContent = `Sono uscito alle ${hm(at)}`;
-    $("stillNo").onclick = () => { p.o = at.getTime(); store.save(); render(); toast(`Uscita registrata alle ${hm(at)}`); };
+    $("stillNo").onclick = () => { p.o = at.getTime(); store.save(); render(); toast(`Uscita registrata alle ${hm(at)}`); askCarAfterExit(open.k); };
     $("stillYes").onclick = () => { stillDismissed = p.i; try { localStorage.setItem("timbrature.still", String(p.i)); } catch (e) {} render(); };
   }
 
@@ -411,11 +415,12 @@
 
   // riepilogo di un mese: ore ordinarie, straordinari, notturne, festive, assenze e stima lorda
   function monthStats(month, now) {
-    const r = { worked: 0, ord: 0, ot: 0, night: 0, fest: 0, absH: 0, abs: {}, days: 0, total: 0 };
+    const r = { worked: 0, ord: 0, ot: 0, night: 0, fest: 0, absH: 0, abs: {}, days: 0, total: 0, carDays: 0, km: 0 };
     for (const k of Object.keys(days)) {
       if (!k.startsWith(month) || !hasData(k)) continue;
       const w = dayMs(k, now), tg = targetFor(k), a = absMs(k);
       if (w || a) r.days++;
+      if (days[k].car === true) { r.carDays++; r.km += Number(days[k].km) || 0; }
       r.worked += w;
       const ordW = Math.min(w, Math.max(0, tg - a));
       r.ord += ordW; r.ot += w - ordW;
@@ -545,6 +550,7 @@
     let tot = list.length ? `Totale ${fmtMonth(selMonth)}: ${dur(sm.worked)} lavorate in ${list.filter(k => days[k].p.length).length} giorni` : "";
     const absTxt = Object.entries(sm.abs).map(([t, ms]) => `${ABS[t].toLowerCase()} ${dur(ms)}`).join(", ");
     if (absTxt) tot += ` · ${absTxt}`;
+    if (sm.carDays) tot += ` · 🚗 auto propria ${sm.carDays} ${sm.carDays === 1 ? "giorno" : "giorni"}${sm.km ? `, ${num1(Math.round(sm.km * 10) / 10)} km` : ""}${sm.km && Number(settings.kmRate) ? ` (rimborso ${eur.format(sm.km * settings.kmRate)})` : ""}`;
     if (list.length && Number(settings.pay) > 0) tot += ` · stima ${eur.format(sm.total)}`;
     $("histTot").textContent = tot;
     $("chart").innerHTML = list.length ? chartHTML(selMonth, now) : "";
@@ -552,13 +558,14 @@
     $("history").innerHTML = list.map(k => {
       const ms = dayMs(k, now), a = absMs(k), tg = targetFor(k), d = days[k];
       const cls = !tg ? (ms ? "over" : "") : ms + a >= tg ? "over" : "under";
-      const tags = [holidayName(k) ? `🇮🇹 ${esc(holidayName(k))}` : "", d.t ? `${ABS_ICON[d.t]} ${ABS[d.t]} ${num1(d.h)}h` : "", d.n ? "📝" : ""].filter(Boolean).join(" · ");
+      const tags = [holidayName(k) ? `🇮🇹 ${esc(holidayName(k))}` : "", d.t ? `${ABS_ICON[d.t]} ${ABS[d.t]} ${num1(d.h)}h` : "", d.car === true ? "🚗 Auto propria" : "", d.n ? "📝" : ""].filter(Boolean).join(" · ");
+      const carRow = d.car === true ? `<div class="row note"><div class="d">🚗 Andato con la propria auto${d.km ? ` · ${num1(d.km)} km` : ""}</div><button class="edit" data-car="${k}">Modifica</button></div>` : "";
       const absRow = d.t ? `<div class="row"><div><div class="t">${ABS_ICON[d.t]} ${ABS[d.t]}</div><div class="d">${num1(d.h)}h pagate</div></div><button class="edit" data-abs="${k}">Modifica</button></div>` : "";
       const noteRow = d.n ? `<div class="row note"><div class="d" style="white-space:pre-wrap">📝 ${esc(d.n)}</div></div>` : "";
       return `<div class="day ${openDays.has(k) ? "open" : ""}" data-day="${k}">
         <div class="day-h" data-toggle="${k}"><span class="n">${esc(fmtDay(k))}${tags ? `<small class="tags">${tags}</small>` : ""}</span><span class="tot ${cls}">${dur(ms + a)}</span></div>
-        <div class="day-b">${absRow}${punchRows(k, now)}${noteRow}
-          <div class="day-actions"><button class="link" data-note="${k}">📝 ${d.n ? "Modifica nota" : "Aggiungi nota"}</button></div></div>
+        <div class="day-b">${absRow}${punchRows(k, now)}${carRow}${noteRow}
+          <div class="day-actions"><button class="link" data-note="${k}">📝 ${d.n ? "Modifica nota" : "Aggiungi nota"}</button>${d.car === true ? "" : ` &nbsp; <button class="link" data-car="${k}">🚗 Auto propria</button>`}</div></div>
       </div>`;
     }).join("");
   }
@@ -714,6 +721,32 @@
     };
   }
 
+  // ---------- auto propria ----------
+  function askCarAfterExit(k) {
+    if (settings.askCar === false || !days[k] || typeof days[k].car === "boolean") return; // una sola domanda al giorno
+    setTimeout(() => openCarSheet(k, true), 350);
+  }
+  function openCarSheet(k, fromPunch) {
+    const d = days[k] || { p: [] }, km = d.car ? (d.km || "") : (Number(settings.lastKm) || "");
+    sheet.innerHTML = `
+      <h3>🚗 Sei andato al lavoro con la tua auto?</h3>
+      <div class="sub" style="margin-bottom:14px">${esc(fmtDay(k))}${fromPunch ? " · lo chiedo una volta al giorno" : ""}</div>
+      <div class="field"><label>Km andata e ritorno (facoltativo)</label><input type="text" id="cKm" inputmode="decimal" placeholder="es. 36" value="${km ? num1(km) : ""}"></div>
+      <div class="err" id="cErr"></div>
+      <div class="btns"><button class="btn s" id="cNo">No</button><button class="btn p" id="cYes">Sì, con la mia auto</button></div>
+      ${fromPunch ? `<div class="sub" style="margin-top:12px;text-align:center">Puoi disattivare questa domanda in Impostazioni.</div>` : ""}`;
+    veil.classList.add("show");
+    const done = msg => { store.save(); closeSheet(); render(); toast(msg); };
+    $("cNo").onclick = () => { days[k] = days[k] || { p: [] }; days[k].car = false; delete days[k].km; done("Segnato: senza auto propria"); };
+    $("cYes").onclick = () => {
+      const raw = String($("cKm").value).trim().replace(",", "."), kmv = raw === "" ? 0 : parseFloat(raw);
+      if (isNaN(kmv) || kmv < 0 || kmv > 2000) { $("cErr").textContent = "Km non validi (es. 36)."; return; }
+      days[k] = days[k] || { p: [] }; days[k].car = true;
+      if (kmv > 0) { days[k].km = Math.round(kmv * 10) / 10; settings.lastKm = days[k].km; } else delete days[k].km;
+      done("🚗 Auto propria segnata");
+    };
+  }
+
   // ---------- note del giorno ----------
   function openNoteSheet(k) {
     const cur = days[k]?.n || "";
@@ -729,7 +762,7 @@
   }
 
   function openSettings() {
-    let color = settings.color, theme = settings.theme, round = Number(settings.round) || 0;
+    let color = settings.color, theme = settings.theme, round = Number(settings.round) || 0, askCar = settings.askCar !== false;
     const num = v => String(v ?? "").replace(".", ",");
     sheet.innerHTML = `
       <h3>Impostazioni</h3>
@@ -745,6 +778,9 @@
       <div class="field"><label>Arrotondamento (come il badge aziendale)</label><div class="seg" id="sRound">${[0, 5, 10, 15, 30].map(m =>
         `<button data-r="${m}">${m ? m + " min" : "No"}</button>`).join("")}</div></div>
       <div class="sub" style="margin-top:-4px">Con l'arrotondamento l'entrata va al blocco successivo e l'uscita a quello precedente (es. 15 min: 08:07 → 08:15, 17:08 → 17:00).</div>
+      <h4>Auto propria</h4>
+      <div class="field"><label>Alla prima uscita del giorno chiedi se sono andato con la mia auto</label><div class="seg" id="sCar"><button data-c2="1">Sì</button><button data-c2="0">No</button></div></div>
+      <div class="field"><label>Rimborso per km (€, facoltativo)</label><input type="text" id="sKmRate" inputmode="decimal" placeholder="es. 0,30" value="${Number(settings.kmRate) > 0 ? num(settings.kmRate) : ""}"></div>
       <h4>Paga (facoltativo)</h4>
       <div class="two">
         <div class="field"><label>Paga oraria lorda (€)</label><input type="text" id="sPay" inputmode="decimal" placeholder="es. 9,50" value="${Number(settings.pay) > 0 ? num(settings.pay) : ""}"></div>
@@ -760,6 +796,9 @@
     paintTheme();
     const paintRound = () => sheet.querySelectorAll("#sRound button").forEach(b => b.classList.toggle("sel", +b.dataset.r === round));
     paintRound();
+    const paintCar = () => sheet.querySelectorAll("#sCar button").forEach(b => b.classList.toggle("sel", (b.dataset.c2 === "1") === askCar));
+    paintCar();
+    $("sCar").onclick = e => { const b = e.target.closest("[data-c2]"); if (b) { askCar = b.dataset.c2 === "1"; paintCar(); } };
     $("sRound").onclick = e => { const b = e.target.closest("[data-r]"); if (b) { round = +b.dataset.r; paintRound(); } };
     $("sTarget").addEventListener("input", () => { const v = $("sTarget").value; for (let i = 0; i < 5; i++) $("sW" + i).value = v; });
     $("sTheme").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { theme = b.dataset.t; paintTheme(); } };
@@ -770,12 +809,14 @@
       const target = parse("sTarget"), pay = parse("sPay"), ot = parse("sOt"), otN = parse("sOtN"), otF = parse("sOtF");
 
       if ([otN, otF].some(v => isNaN(v) || v < 0 || v > 300)) { $("sErr").textContent = "Maggiorazione non valida (es. 20)."; return; }
+      const kmRate = parse("sKmRate");
+      if (isNaN(kmRate) || kmRate < 0 || kmRate > 10) { $("sErr").textContent = "Rimborso per km non valido (es. 0,30)."; return; }
       if (isNaN(target) || target < 0 || target > 24) { $("sErr").textContent = "Ore al giorno: scrivi un numero tra 0 e 24 (es. 8 o 7,5)."; return; }
       const week = WD.map((_, i) => parse("sW" + i));
       if (week.some(h => isNaN(h) || h < 0 || h > 24)) { $("sErr").textContent = "Ore per giorno: numeri tra 0 e 24."; return; }
       if (isNaN(pay) || pay < 0 || pay > 1000) { $("sErr").textContent = "Paga oraria non valida (es. 9,50)."; return; }
       if (isNaN(ot) || ot < 0 || ot > 300) { $("sErr").textContent = "Maggiorazione non valida (es. 25)."; return; }
-      settings = Object.assign({}, settings, { target, week, round, otN, otF, pay, ot, color, theme, name: $("sName").value.trim().slice(0, 40) || DEFAULTS.name });
+      settings = Object.assign({}, settings, { askCar, kmRate, target, week, round, otN, otF, pay, ot, color, theme, name: $("sName").value.trim().slice(0, 40) || DEFAULTS.name });
       closeSheet(); render(); toast("Impostazioni salvate");
       try { await store.writeSettings(); } catch (e) { toast("Errore nel salvataggio"); }
     };
@@ -826,19 +867,20 @@
   }
   function buildXlsx(month) {
     const now = Date.now(), H = 3600000, keys = Object.keys(days).filter(k => k.startsWith(month) && hasData(k)).sort();
-    const r1 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Tipo" }, { b: "Entrata" }, { b: "Uscita" }, { b: "Ore" }, { b: "Note" }]];
+    const r1 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Tipo" }, { b: "Entrata" }, { b: "Uscita" }, { b: "Ore" }, { b: "Note" }, { b: "Auto propria" }, { b: "Km" }]];
+    const carCells = (d, first) => first && d.car === true ? ["Sì", d.km ? d.km : ""] : ["", ""];
     const wd = k => keyToDate(k).toLocaleDateString("it-IT", { weekday: "long" });
     for (const k of keys) {
       const d = days[k];
-      if (d.t) r1.push([{ d: k }, wd(k), ABS[d.t], "", "", { h: d.h }, d.n || ""]);
+      if (d.t) r1.push([{ d: k }, wd(k), ABS[d.t], "", "", { h: d.h }, d.n || "", ...carCells(d, !d.p.length)]);
       d.p.forEach((p, i) => { const e = eff(p, now);
-        r1.push([{ d: k }, wd(k), isFestive(k) ? "Lavoro (festivo)" : "Lavoro", hm(e.i), p.o != null ? hm(e.o) : "in corso", { h: punchMs(p, now) / H }, !d.t && i === 0 ? d.n || "" : ""]); });
-      if (!d.t && !d.p.length && d.n) r1.push([{ d: k }, wd(k), "Nota", "", "", "", d.n]);
+        r1.push([{ d: k }, wd(k), isFestive(k) ? "Lavoro (festivo)" : "Lavoro", hm(e.i), p.o != null ? hm(e.o) : "in corso", { h: punchMs(p, now) / H }, !d.t && i === 0 ? d.n || "" : "", ...carCells(d, i === 0)]); });
+      if (!d.t && !d.p.length && (d.n || d.car === true)) r1.push([{ d: k }, wd(k), "Nota", "", "", "", d.n || "", ...carCells(d, true)]);
     }
-    const r2 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Ore lavorate" }, { b: "Assenze pagate" }, { b: "Ore previste" }, { b: "Differenza" }, { b: "Festività" }]];
+    const r2 = [[{ b: "Data" }, { b: "Giorno" }, { b: "Ore lavorate" }, { b: "Assenze pagate" }, { b: "Ore previste" }, { b: "Differenza" }, { b: "Festività" }, { b: "Auto propria" }, { b: "Km" }]];
     for (const k of keys) {
       const w = dayMs(k, now) / H, a = absMs(k) / H, t = targetFor(k) / H;
-      r2.push([{ d: k }, wd(k), { h: w }, { h: a }, { h: t }, { h: w + a - t }, holidayName(k) || ""]);
+      r2.push([{ d: k }, wd(k), { h: w }, { h: a }, { h: t }, { h: w + a - t }, holidayName(k) || "", days[k].car === true ? "Sì" : "", days[k].car === true && days[k].km ? days[k].km : ""]);
     }
     const st = monthStats(month, now), pay = Number(settings.pay) || 0;
     const r3 = [[{ b: "Voce" }, { b: "Valore" }],
@@ -846,11 +888,15 @@
       ["di cui notturne (22-6)", { h: st.night / H }], ["di cui domenica/festivi", { h: st.fest / H }]];
     for (const t of Object.keys(ABS)) if (st.abs[t]) r3.push([`${ABS[t]} (ore)`, { h: st.abs[t] / H }]);
     r3.push(["Giorni con presenze o assenze", st.days]);
+    if (st.carDays) {
+      r3.push(["Giorni con auto propria", st.carDays], ["Km totali con auto propria", Math.round(st.km * 10) / 10]);
+      if (Number(settings.kmRate) && st.km) r3.push(["Rimborso km (" + num1(settings.kmRate) + " €/km)", { e: st.km * settings.kmRate }]);
+    }
     if (settings.round) r3.push(["Arrotondamento", `${settings.round} minuti`]);
     if (pay) r3.push(["Paga oraria lorda", { e: pay }], ["Maggiorazione straordinari %", Number(settings.ot) || 0],
       ["Extra notturno %", Number(settings.otN) || 0], ["Extra domenica/festivi %", Number(settings.otF) || 0], [{ b: "Stima lordo del mese" }, { e: st.total }]);
     r3.push(["", ""], ["Creato con l'app Timbrature", new Date().toLocaleString("it-IT")]);
-    const sheets = [["Timbrature", sheetXML(r1, [12, 12, 18, 9, 9, 8, 40])], ["Giorni", sheetXML(r2, [12, 12, 13, 15, 13, 12, 22])], ["Totali", sheetXML(r3, [32, 22])]];
+    const sheets = [["Timbrature", sheetXML(r1, [12, 12, 18, 9, 9, 8, 40, 13, 8])], ["Giorni", sheetXML(r2, [12, 12, 13, 15, 13, 12, 22, 13, 8])], ["Totali", sheetXML(r3, [32, 22])]];
     const ns = 'xmlns="http://schemas.openxmlformats.org/package/2006/relationships"';
     const files = [
       { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` },
@@ -940,6 +986,9 @@
         const lim = { target: 24, pay: 1000, ot: 300, otN: 300, otF: 300 };
         if (Array.isArray(js.week) && js.week.length === 7 && js.week.every(h => Number.isFinite(+h) && +h >= 0 && +h <= 24)) okS.week = js.week.map(Number);
         if ([0, 5, 10, 15, 30].includes(+js.round)) okS.round = +js.round;
+        if (typeof js.askCar === "boolean") okS.askCar = js.askCar;
+        if (Number.isFinite(+js.kmRate) && +js.kmRate >= 0 && +js.kmRate <= 10) okS.kmRate = +js.kmRate;
+        if (Number.isFinite(+js.lastKm) && +js.lastKm >= 0 && +js.lastKm <= 2000) okS.lastKm = +js.lastKm;
         for (const key of ["target", "pay", "ot", "otN", "otF"]) if (js[key] !== "" && Number.isFinite(+js[key]) && +js[key] >= 0 && +js[key] <= lim[key]) okS[key] = +js[key];
         if (typeof js.name === "string") okS.name = js.name.slice(0, 40);
         if (COLORS.includes(js.color)) okS.color = js.color;
@@ -1023,6 +1072,8 @@
       </ul>
       <h4>✏️ Correggere e annotare</h4>
       <p>Nello <b>Storico</b> tocca un giorno: <b>Modifica</b> cambia o elimina una timbratura o un'assenza, <b>📝 Aggiungi nota</b> salva un appunto (es. "cantiere Bergamo"). Con <b>+ Aggiungi</b> inserisci a mano un turno dimenticato.</p>
+      <h4>🚗 Auto propria</h4>
+      <p>Alla <b>prima uscita</b> della giornata l'app chiede se sei andato al lavoro con la tua auto (una volta sola al giorno, quindi non disturba alla pausa pranzo). Se rispondi <b>Sì</b> la giornata viene segnata "🚗 Auto propria", con i km se li scrivi. Nello Storico vedi i giorni e i km del mese (e il rimborso se imposti gli €/km); tutto finisce anche nel file Excel. Puoi correggere dallo Storico con <b>🚗 Auto propria</b> / <b>Modifica</b>, o disattivare la domanda in Impostazioni.</p>
       <h4>📊 Grafico</h4>
       <p>Sopra lo storico c'è una barra per ogni giorno del mese: colorata = ore lavorate (verde se hai superato le ore previste), grigia = assenze, linea sottile = ore previste.</p>
       <h4>💶 Stima paga</h4>
@@ -1047,10 +1098,12 @@
   }
 
   // ---------- aggiornamenti ----------
-  const APP_VERSION = "3.2";
+  const APP_VERSION = "3.3";
   $("ver").textContent = APP_VERSION;
   // novità di ogni versione, mostrate una volta dopo l'aggiornamento
   const CHANGELOG = [
+    ["3.3", ["Auto propria: alla prima uscita del giorno l'app chiede se sei andato con la tua auto e lo segna sulla giornata, con i km.",
+             "Nello Storico e nel file Excel: giorni con auto propria, km totali e rimborso (se imposti gli €/km in Impostazioni)."]],
     ["3.2", ["Funziona anche senza internet: in cantiere senza campo l'app si apre e timbra lo stesso.",
              "Promemoria di backup una volta al mese, con salvataggio in iCloud in un tocco.",
              "Lo zoom con due dita è disattivato."]],
@@ -1117,6 +1170,8 @@
   document.addEventListener("click", e => {
     const ab = e.target.closest("[data-abs]");
     if (ab) { openAbsenceSheet(ab.dataset.abs); return; }
+    const cr = e.target.closest("[data-car]");
+    if (cr) { openCarSheet(cr.dataset.car, false); return; }
     const nt = e.target.closest("[data-note]");
     if (nt) { openNoteSheet(nt.dataset.note); return; }
     const ed = e.target.closest(".edit[data-k]");
